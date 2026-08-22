@@ -1,0 +1,131 @@
+replicaCount: 1
+revisionHistoryLimit: 3
+
+image:
+  repository: kimc1992/dorarion-core
+  pullPolicy: IfNotPresent
+  tag: "0.0.1"
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+# Absolute browser origin used for secure cookies, GitLab CI reporting URLs,
+# and links returned by Dorarion. Set this explicitly for every installation.
+publicUrl: ""
+
+# This Secret must exist before `helm install` because the migration Job is a
+# pre-install/pre-upgrade hook. Do not put credentials directly in values.yaml.
+existingSecret: dorarion-secrets
+secretKeys:
+  databaseUrl: DATABASE_URL
+  jwtSecret: JWT_SECRET
+  encryptionKey: SECRET_ENCRYPTION_KEY
+
+database:
+  connectionPoolSize: 10
+
+security:
+  jwtIssuer: dorarion-core
+  jwtAudience: dorarion-api
+  jwtTtlSeconds: 600
+  refreshTokenTtlSeconds: 2592000
+  encryptionKeyRef: local:v1
+  allowPrivateWebhookDestinations: false
+
+# Optional first-install administrator. Enable only for a new, empty Dorarion
+# database. The generated password is printed once in the bootstrap Job logs.
+bootstrapAdmin:
+  enabled: false
+  username: admin
+  email: ""
+  ttlSecondsAfterFinished: 86400
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      memory: 256Mi
+
+service:
+  type: ClusterIP
+  port: 80
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts:
+    - host: dorarion.local
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
+podAnnotations: {}
+podLabels: {}
+
+# Use valueFrom for sensitive additions such as SMTP_PASSWORD or notification
+# webhook variables. Do not put their literal values in values.yaml.
+extraEnv: []
+extraEnvFrom: []
+
+rollout:
+  restartAt: ""
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+
+terminationGracePeriodSeconds: 30
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 10001
+  runAsGroup: 10001
+  fsGroup: 10001
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    memory: 512Mi
+
+probes:
+  startup:
+    periodSeconds: 5
+    timeoutSeconds: 5
+    failureThreshold: 24
+  liveness:
+    periodSeconds: 15
+    timeoutSeconds: 5
+    failureThreshold: 3
+  readiness:
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 6
+
+migration:
+  backoffLimit: 3
+  activeDeadlineSeconds: 600
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      memory: 256Mi
+
+nodeSelector: {}
+tolerations: []
+affinity: {}

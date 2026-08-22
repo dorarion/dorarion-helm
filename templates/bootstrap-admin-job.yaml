@@ -1,0 +1,50 @@
+{{- if .Values.bootstrapAdmin.enabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "dorarion.fullname" . }}-bootstrap-admin
+  labels:
+    {{- include "dorarion.labels" . | nindent 4 }}
+    app.kubernetes.io/component: bootstrap-admin
+  annotations:
+    "helm.sh/hook": post-install
+    "helm.sh/hook-weight": "5"
+    "helm.sh/hook-delete-policy": before-hook-creation
+spec:
+  ttlSecondsAfterFinished: {{ .Values.bootstrapAdmin.ttlSecondsAfterFinished }}
+  backoffLimit: 0
+  template:
+    metadata:
+      labels:
+        {{- include "dorarion.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: bootstrap-admin
+    spec:
+      restartPolicy: Never
+      automountServiceAccountToken: false
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: bootstrap-admin
+          image: {{ include "dorarion.image" . | quote }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args:
+            - bootstrap-admin
+            - {{ required "bootstrapAdmin.username is required when bootstrap is enabled" .Values.bootstrapAdmin.username | quote }}
+            - {{ include "dorarion.bootstrapEmail" . | quote }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "dorarion.secretName" . }}
+                  key: {{ .Values.secretKeys.databaseUrl }}
+            - name: DB_CONNECTION_POOL_SIZE
+              value: "1"
+          resources:
+            {{- toYaml .Values.bootstrapAdmin.resources | nindent 12 }}
+{{- end }}

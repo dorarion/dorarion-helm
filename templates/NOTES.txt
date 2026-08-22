@@ -1,0 +1,21 @@
+1. Dorarion has been deployed.
+2. The migration hook completed before this release was installed or upgraded.
+3. Check the rollout:
+
+   kubectl rollout status deployment/{{ include "dorarion.fullname" . }} -n {{ .Release.Namespace }}
+
+{{- if eq .Values.service.type "ClusterIP" }}
+4. Access it locally:
+
+   kubectl port-forward service/{{ include "dorarion.fullname" . }} 3000:{{ .Values.service.port }} -n {{ .Release.Namespace }}
+{{- end }}
+
+{{- if .Values.bootstrapAdmin.enabled }}
+The first administrator password is shown exactly once in the bootstrap Job log:
+
+   kubectl logs job/{{ include "dorarion.fullname" . }}-bootstrap-admin -n {{ .Release.Namespace }}
+
+Store it in a password manager, then remove the credential-bearing Job log:
+
+   kubectl delete job/{{ include "dorarion.fullname" . }}-bootstrap-admin -n {{ .Release.Namespace }}
+{{- end }}

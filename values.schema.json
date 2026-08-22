@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["image", "existingSecret", "publicUrl", "secretKeys", "security"],
+  "properties": {
+    "replicaCount": { "type": "integer", "minimum": 1 },
+    "revisionHistoryLimit": { "type": "integer", "minimum": 0 },
+    "publicUrl": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^https?://",
+      "description": "Absolute externally reachable Dorarion origin"
+    },
+    "existingSecret": { "type": "string", "minLength": 1 },
+    "image": {
+      "type": "object",
+      "required": ["repository", "pullPolicy"],
+      "properties": {
+        "repository": { "type": "string", "minLength": 1 },
+        "tag": { "type": "string" },
+        "pullPolicy": { "enum": ["Always", "IfNotPresent", "Never"] }
+      }
+    },
+    "secretKeys": {
+      "type": "object",
+      "required": ["databaseUrl", "jwtSecret", "encryptionKey"],
+      "properties": {
+        "databaseUrl": { "type": "string", "minLength": 1 },
+        "jwtSecret": { "type": "string", "minLength": 1 },
+        "encryptionKey": { "type": "string", "minLength": 1 }
+      }
+    },
+    "database": {
+      "type": "object",
+      "properties": {
+        "connectionPoolSize": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "security": {
+      "type": "object",
+      "required": ["jwtIssuer", "jwtAudience", "jwtTtlSeconds", "refreshTokenTtlSeconds", "encryptionKeyRef"],
+      "properties": {
+        "jwtIssuer": { "type": "string", "minLength": 1 },
+        "jwtAudience": { "type": "string", "minLength": 1 },
+        "jwtTtlSeconds": { "type": "integer", "minimum": 1 },
+        "refreshTokenTtlSeconds": { "type": "integer", "minimum": 2 },
+        "encryptionKeyRef": { "type": "string", "minLength": 1 },
+        "allowPrivateWebhookDestinations": { "type": "boolean" }
+      }
+    },
+    "bootstrapAdmin": {
+      "type": "object",
+      "required": ["enabled", "username", "email", "ttlSecondsAfterFinished"],
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "username": { "type": "string", "minLength": 1 },
+        "email": { "type": "string" },
+        "ttlSecondsAfterFinished": { "type": "integer", "minimum": 300 }
+      }
+    },
+    "terminationGracePeriodSeconds": { "type": "integer", "minimum": 1 }
+  }
+}
