@@ -5,6 +5,17 @@ externally operated PostgreSQL database. It runs `dorarion-core migrate` as a
 blocking `pre-install,pre-upgrade` hook; the Deployment is not updated when a
 migration fails.
 
+## Installation guides
+
+Complete Kubernetes, PostgreSQL, and first-install walkthroughs are available
+in Markdown and PDF:
+
+| Language | Markdown | PDF |
+| --- | --- | --- |
+| English | [Read online](docs/installation-kubernetes-helm.md) | [Download PDF](docs/pdf/dorarion-kubernetes-helm-install-en.pdf) |
+| 한국어 | [온라인 문서](docs/installation-kubernetes-helm-ko.md) | [PDF 다운로드](docs/pdf/dorarion-kubernetes-helm-install-ko.pdf) |
+| 简体中文 | [在线文档](docs/installation-kubernetes-helm-zh-cn.md) | [下载 PDF](docs/pdf/dorarion-kubernetes-helm-install-zh-cn.pdf) |
+
 ## Prerequisites
 
 - Kubernetes 1.28 or newer;

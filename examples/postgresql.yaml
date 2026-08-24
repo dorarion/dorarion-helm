@@ -1,0 +1,110 @@
+# Single-node PostgreSQL example for learning and small test installations.
+# This is not a highly available or production backup solution.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: dorarion-postgresql
+  namespace: dorarion
+  labels:
+    app.kubernetes.io/name: dorarion-postgresql
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dorarion-postgresql
+  namespace: dorarion
+  labels:
+    app.kubernetes.io/name: dorarion-postgresql
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: dorarion-postgresql
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: dorarion-postgresql
+    spec:
+      automountServiceAccountToken: false
+      containers:
+        - name: postgresql
+          image: postgres:17-bookworm
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: POSTGRES_DB
+              valueFrom:
+                secretKeyRef:
+                  name: dorarion-postgresql
+                  key: POSTGRES_DB
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: dorarion-postgresql
+                  key: POSTGRES_USER
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: dorarion-postgresql
+                  key: POSTGRES_PASSWORD
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          ports:
+            - name: postgresql
+              containerPort: 5432
+          readinessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -ec
+                - pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 12
+          livenessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -ec
+                - pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              memory: 1Gi
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: dorarion-postgresql
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: dorarion-postgresql
+  namespace: dorarion
+  labels:
+    app.kubernetes.io/name: dorarion-postgresql
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: dorarion-postgresql
+  ports:
+    - name: postgresql
+      port: 5432
+      targetPort: postgresql
