@@ -16,8 +16,8 @@ Run these commands from the `dorarion-helm` repository and replace the example
 versions with the versions being released:
 
 ```bash
-export DORARION_APP_VERSION=0.0.1
-export DORARION_CHART_VERSION=0.0.1
+export DORARION_APP_VERSION=0.0.3
+export DORARION_CHART_VERSION=0.0.3
 ```
 
 Application image tags and chart versions are immutable. Do not overwrite an
@@ -62,8 +62,8 @@ docker buildx imagetools inspect \
 In `Chart.yaml`, set:
 
 ```yaml
-version: 0.0.1
-appVersion: "0.0.1"
+version: 0.0.3
+appVersion: "0.0.3"
 ```
 
 In `values.yaml`, set:
@@ -71,7 +71,7 @@ In `values.yaml`, set:
 ```yaml
 image:
   repository: kimc1992/dorarion-core
-  tag: "0.0.1"
+  tag: "0.0.3"
 ```
 
 Use the actual values from `DORARION_CHART_VERSION` and

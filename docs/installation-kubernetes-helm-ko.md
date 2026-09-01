@@ -7,7 +7,7 @@
 > 계정을 만든 다음 애플리케이션을 확인합니다.
 
 - Kubernetes 클러스터에 접근하도록 설정된 터미널에서 모든 명령을 실행합니다.
-- 이 가이드는 Docker Hub의 Helm 차트 `kimc1992/dorarion` 버전 `0.0.1`을 사용합니다.
+- 이 가이드는 Docker Hub의 Helm 차트 `kimc1992/dorarion` 버전 `0.0.3`을 사용합니다.
 - Dorarion에는 Kubernetes 1.28 이상과 Helm 3이 필요합니다.
 - 이 차트는 PostgreSQL을 설치하지 않습니다. 먼저 데이터베이스와 백업을 준비하세요.
 - [PDF 버전](pdf/dorarion-kubernetes-helm-install-ko.pdf)도 제공됩니다.
@@ -32,15 +32,15 @@ Docker Hub에서 차트 정보를 직접 확인합니다.
 
 ```bash
 helm show chart oci://registry-1.docker.io/kimc1992/dorarion \
-  --version 0.0.1
+  --version 0.0.3
 ```
 
 예상되는 차트 메타데이터는 다음과 같습니다.
 
 - 차트: `dorarion`
-- 차트 버전: `0.0.1`
-- 애플리케이션 버전: `0.0.1`
-- 애플리케이션 이미지: `kimc1992/dorarion-core:0.0.1`
+- 차트 버전: `0.0.3`
+- 애플리케이션 버전: `0.0.3`
+- 애플리케이션 이미지: `kimc1992/dorarion-core:0.0.3`
 
 ## 3. PostgreSQL 준비
 
@@ -164,7 +164,7 @@ kubectl -n dorarion describe secret dorarion-secrets
 ```bash
 helm upgrade --install dorarion \
   oci://registry-1.docker.io/kimc1992/dorarion \
-  --version 0.0.1 \
+  --version 0.0.3 \
   --namespace dorarion \
   --set publicUrl=https://dorarion.example.com \
   --set bootstrapAdmin.enabled=true \
@@ -269,7 +269,7 @@ ingress:
 ```bash
 helm upgrade dorarion \
   oci://registry-1.docker.io/kimc1992/dorarion \
-  --version 0.0.1 \
+  --version 0.0.3 \
   --namespace dorarion \
   --reuse-values \
   --set bootstrapAdmin.enabled=false \

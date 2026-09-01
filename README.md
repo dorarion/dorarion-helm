@@ -161,7 +161,7 @@ helm lint . --set publicUrl=https://dorarion.example.com
 helm template test . \
   --namespace dorarion \
   --set publicUrl=https://dorarion.example.com \
-  --set image.tag=0.0.1
+  --set image.tag=0.0.3
 
 ./tests/render.sh
 ```

@@ -5,14 +5,14 @@ readonly CHART_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 helm lint "$CHART_DIR" \
   --set publicUrl=https://dorarion.example.com \
-  --set image.tag=0.0.1 \
+  --set image.tag=0.0.3 \
   --set bootstrapAdmin.enabled=true \
   --set bootstrapAdmin.email=admin@example.com
 
 rendered="$(helm template test "$CHART_DIR" \
   --namespace dorarion \
   --set publicUrl=https://dorarion.example.com/ \
-  --set image.tag=0.0.1 \
+  --set image.tag=0.0.3 \
   --set bootstrapAdmin.enabled=true \
   --set bootstrapAdmin.email=admin@example.com \
   --set extraEnv[0].name=SMTP_HOST \

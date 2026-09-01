@@ -6,7 +6,7 @@
 > 数据库，创建所需的 Kubernetes Secret 和第一个管理员账户，然后验证应用。
 
 - 请在已配置为访问目标 Kubernetes 集群的终端中运行所有命令。
-- 本指南使用 Docker Hub 上的 Helm Chart `kimc1992/dorarion` 版本 `0.0.1`。
+- 本指南使用 Docker Hub 上的 Helm Chart `kimc1992/dorarion` 版本 `0.0.3`。
 - Dorarion 需要 Kubernetes 1.28 或更高版本以及 Helm 3。
 - 此 Chart 不安装 PostgreSQL；请先准备数据库和备份。
 - 另有 [PDF 版本](pdf/dorarion-kubernetes-helm-install-zh-cn.pdf)。
@@ -30,15 +30,15 @@ helm version
 
 ```bash
 helm show chart oci://registry-1.docker.io/kimc1992/dorarion \
-  --version 0.0.1
+  --version 0.0.3
 ```
 
 预期的 Chart 元数据如下：
 
 - Chart：`dorarion`
-- Chart 版本：`0.0.1`
-- 应用版本：`0.0.1`
-- 应用镜像：`kimc1992/dorarion-core:0.0.1`
+- Chart 版本：`0.0.3`
+- 应用版本：`0.0.3`
+- 应用镜像：`kimc1992/dorarion-core:0.0.3`
 
 ## 3. 准备 PostgreSQL
 
@@ -153,7 +153,7 @@ bootstrap：
 ```bash
 helm upgrade --install dorarion \
   oci://registry-1.docker.io/kimc1992/dorarion \
-  --version 0.0.1 \
+  --version 0.0.3 \
   --namespace dorarion \
   --set publicUrl=https://dorarion.example.com \
   --set bootstrapAdmin.enabled=true \
@@ -257,7 +257,7 @@ ingress:
 ```bash
 helm upgrade dorarion \
   oci://registry-1.docker.io/kimc1992/dorarion \
-  --version 0.0.1 \
+  --version 0.0.3 \
   --namespace dorarion \
   --reuse-values \
   --set bootstrapAdmin.enabled=false \

@@ -7,7 +7,7 @@ Simple cluster installation guide
 > the first administrator, and verify the application.
 
 - Run all commands from a terminal configured to access your Kubernetes cluster.
-- This guide uses Helm chart `kimc1992/dorarion` version `0.0.1` from Docker Hub.
+- This guide uses Helm chart `kimc1992/dorarion` version `0.0.3` from Docker Hub.
 - Dorarion requires Kubernetes 1.28 or newer and Helm 3.
 - PostgreSQL is not installed by this chart; prepare a database and backups first.
 - A [PDF version](pdf/dorarion-kubernetes-helm-install-en.pdf) is also available.
@@ -32,15 +32,15 @@ Inspect the chart directly from Docker Hub:
 
 ```bash
 helm show chart oci://registry-1.docker.io/kimc1992/dorarion \
-  --version 0.0.1
+  --version 0.0.3
 ```
 
 The expected chart metadata is:
 
 - Chart: `dorarion`
-- Chart version: `0.0.1`
-- Application version: `0.0.1`
-- Application image: `kimc1992/dorarion-core:0.0.1`
+- Chart version: `0.0.3`
+- Application version: `0.0.3`
+- Application image: `kimc1992/dorarion-core:0.0.3`
 
 ## 3. Prepare PostgreSQL
 
@@ -162,7 +162,7 @@ Dorarion and enable administrator bootstrap for this first installation only:
 ```bash
 helm upgrade --install dorarion \
   oci://registry-1.docker.io/kimc1992/dorarion \
-  --version 0.0.1 \
+  --version 0.0.3 \
   --namespace dorarion \
   --set publicUrl=https://dorarion.example.com \
   --set bootstrapAdmin.enabled=true \
@@ -267,7 +267,7 @@ Apply it without enabling administrator bootstrap:
 ```bash
 helm upgrade dorarion \
   oci://registry-1.docker.io/kimc1992/dorarion \
-  --version 0.0.1 \
+  --version 0.0.3 \
   --namespace dorarion \
   --reuse-values \
   --set bootstrapAdmin.enabled=false \
