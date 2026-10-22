@@ -7,11 +7,11 @@ revisionHistoryLimit: 3
 image:
   # Overrides core, receiver and watcher; global.imageRegistry takes precedence.
   registry: ""
-  repository: ghcr.io/dorarion/dorarion-core
+  repository: docker.io/kimc1992/dorarion-core
   pullPolicy: IfNotPresent
-  # Select an image built from the reviewed core source; old tags are not republished.
-  tag: ""
-  digest: ""
+  # Docker Hub 0.0.5 linux/amd64 image supplied for release testing.
+  tag: "0.0.5"
+  digest: "sha256:0dbc38be4c403cd2e7d9ac1bf29761364d9832063d3638ed8cfde06dba4e6061"
 
 imagePullSecrets: []
 nameOverride: ""

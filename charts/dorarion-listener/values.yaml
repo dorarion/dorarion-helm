@@ -5,9 +5,9 @@ renderFromParent: false
 replicaCount: 2
 image:
   registry: docker.io
-  repository: dorarion/dorarion-listener
-  tag: "0.1.0"
-  digest: ""
+  repository: kimc1992/dorarion-listener
+  tag: "0.0.1"
+  digest: "sha256:7427a98bce965ca4ebfa9a95c4f7bc99bbcdbadf88484a1b027378c497deeaf6"
   pullPolicy: IfNotPresent
 imagePullSecrets: []
 existingSecret: dorarion-listener-secrets

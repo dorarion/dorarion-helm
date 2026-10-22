@@ -5,6 +5,33 @@ externally operated PostgreSQL 16+ database. It runs `dorarion-core migrate` as 
 blocking `pre-install,pre-upgrade` hook; the Deployment is not updated when a
 migration fails.
 
+## Images selected for testing
+
+The checked-out chart defaults to Docker Hub core `kimc1992/dorarion-core:0.0.5`
+and listener `kimc1992/dorarion-listener:0.0.1`, pinned to the supplied
+linux/amd64 manifest digests. Listener remains optional. These pins select exact
+artifacts; they do not establish that the images contain the current source fixes.
+Use an amd64 node for these images. Previously packaged `.tgz` archives are unchanged.
+
+Render the release images, including receiver and watcher, before installing:
+
+```bash
+helm template release-test . \
+  --set publicUrl=https://dorarion.example.com \
+  --set listener.enabled=true \
+  --set listener.watcher.enabled=true \
+  --set listener.watcher.receiverUrl=https://receiver.example.com
+```
+
+For a live listener installation, provision the restricted listener database role
+and `dorarion-listener-secrets` first, and configure the receiver URL and watcher
+credentials for your environment. See the listener repository README. Helm rendering
+does not check database connectivity or image runtime compatibility.
+
+A digest takes precedence over a tag. When testing another tag, clear the pin with
+`--set image.digest= --set-string image.tag=NEW_TAG`; for listener use
+`--set listener.image.digest= --set-string listener.image.tag=NEW_TAG`.
+
 ## Installation guides
 
 Complete Kubernetes, PostgreSQL, and first-install walkthroughs are available
@@ -26,12 +53,8 @@ in Markdown and PDF:
 
 ## Install
 
-Select the verified digest of an image built from the reviewed core source.
-Use the matching repository through image.repository if it differs from GHCR:
-
-```bash
-read -r -p "Reviewed image digest (sha256:...): " DORARION_IMAGE_DIGEST
-```
+The defaults select the pinned core `0.0.5` test image. To use another release,
+override `image.repository` and `image.digest` with that release's coordinates.
 
 Create credentials before installation because the migration hook runs before
 ordinary release resources. Generate the JWT secret and 256-bit encryption key
@@ -60,7 +83,6 @@ enabled for a new database with no Dorarion accounts:
 helm upgrade --install dorarion . \
   --namespace dorarion \
   --set publicUrl=https://dorarion.example.com \
-  --set-string image.digest="$DORARION_IMAGE_DIGEST" \
   --set bootstrapAdmin.enabled=true \
   --set bootstrapAdmin.email=you@example.com \
   --wait \
@@ -91,6 +113,7 @@ Back up PostgreSQL and the `SECRET_ENCRYPTION_KEY` before selecting a new
 immutable image tag:
 
 ```bash
+read -r -p "New image digest (sha256:...): " DORARION_IMAGE_DIGEST
 helm upgrade dorarion . \
   --namespace dorarion \
   --reuse-values \
@@ -190,11 +213,9 @@ installations. Create the namespace and existing Secret before Helm installation
 
 ## Reviewed core configuration
 
-Set `DORARION_IMAGE_DIGEST` to the verified SHA-256 digest of an image built from
-reviewed core source before using these commands. Set `image.repository` as well
-when using another registry. This update publishes no image; existing v0.0.3 tags
-are not proof of the local audit fixes. The chart requires an explicit tag/digest.
-Previously packaged .tgz archives are unchanged; install the checked-out chart.
+The default pins target the Docker Hub test images listed above. For another
+release, select its reviewed repository and SHA-256 digest. Previously packaged
+`.tgz` archives are unchanged; install the checked-out chart.
 
 The API pool defaults to 15, with a separate six-connection worker pool per
 replica. Budget database connections for replicas and hook Jobs. Set
