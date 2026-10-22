@@ -1,0 +1,26 @@
+name: Helm CI
+on: [push, pull_request, workflow_dispatch]
+permissions:
+  contents: read
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Install YAML test support
+        run: sudo apt-get update && sudo apt-get install --yes python3-yaml
+      - name: Install validators
+        run: |
+          curl --fail --location https://github.com/yannh/kubeconform/releases/download/v0.7.0/kubeconform-linux-amd64.tar.gz -o /tmp/kubeconform-linux-amd64.tar.gz
+          curl --fail --location https://github.com/yannh/kubeconform/releases/download/v0.7.0/CHECKSUMS -o /tmp/CHECKSUMS
+          cd /tmp
+          awk '$2 == "kubeconform-linux-amd64.tar.gz"' CHECKSUMS | sha256sum --check --strict
+          tar -xzf kubeconform-linux-amd64.tar.gz kubeconform
+          sudo install kubeconform /usr/local/bin/kubeconform
+          curl --fail --location https://get.helm.sh/helm-v3.20.1-linux-amd64.tar.gz -o helm-v3.20.1-linux-amd64.tar.gz
+          curl --fail --location https://get.helm.sh/helm-v3.20.1-linux-amd64.tar.gz.sha256sum -o helm.sha256sum
+          sha256sum --check --strict helm.sha256sum
+          tar -xzf helm-v3.20.1-linux-amd64.tar.gz linux-amd64/helm
+          sudo install linux-amd64/helm /usr/local/bin/helm
+          helm version
+      - run: bash tests/render.sh

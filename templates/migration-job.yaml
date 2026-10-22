@@ -26,6 +26,10 @@ spec:
       {{- end }}
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      {{- with .Values.extraVolumes }}
+      volumes:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       containers:
         - name: migrate
           image: {{ include "dorarion.image" . | quote }}
@@ -34,6 +38,7 @@ spec:
           securityContext:
             {{- toYaml .Values.securityContext | nindent 12 }}
           env:
+            {{- include "dorarion.installationPolicyEnv" . | nindent 12 }}
             - name: DATABASE_URL
               valueFrom:
                 secretKeyRef:
@@ -48,10 +53,25 @@ spec:
                 secretKeyRef:
                   name: {{ include "dorarion.secretName" . }}
                   key: {{ .Values.secretKeys.jwtSecret }}
+            - name: JWT_ISSUER
+              value: {{ .Values.security.jwtIssuer | quote }}
+            - name: JWT_AUDIENCE
+              value: {{ .Values.security.jwtAudience | quote }}
             - name: SECRET_ENCRYPTION_KEY
               valueFrom:
                 secretKeyRef:
                   name: {{ include "dorarion.secretName" . }}
                   key: {{ .Values.secretKeys.encryptionKey }}
+            {{- with .Values.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          {{- with .Values.extraEnvFrom }}
+          envFrom:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.extraVolumeMounts }}
+          volumeMounts:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           resources:
             {{- toYaml .Values.migration.resources | nindent 12 }}

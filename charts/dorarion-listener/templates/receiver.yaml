@@ -1,0 +1,59 @@
+{{- define "listener.receiver" -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "listener.name" . }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels: {app: {{ include "listener.name" . }}}
+  template:
+    metadata:
+      labels: {app: {{ include "listener.name" . }}}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets: {{ toYaml . | nindent 8 }}
+      {{- end }}
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 30
+      securityContext: {runAsNonRoot: true, runAsUser: 10001, runAsGroup: 10001, seccompProfile: {type: RuntimeDefault}}
+      {{- with .Values.extraVolumes }}
+      volumes: {{ toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: receiver
+          image: {{ include "listener.image" . | quote }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args: [receiver]
+          securityContext: {allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: {drop: [ALL]}}
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef: {name: {{ .Values.existingSecret }}, key: {{ .Values.databaseUrlKey }}}
+            {{- if .Values.metricsTokenKey }}
+            - name: LISTENER_METRICS_TOKEN
+              valueFrom:
+                secretKeyRef: {name: {{ .Values.existingSecret }}, key: {{ .Values.metricsTokenKey }}}
+            {{- end }}
+            - {name: LISTENER_DATABASE_TRUSTED_HOSTS, value: {{ join "," .Values.trustedDatabaseHosts | quote }}}
+            - {name: LISTENER_TRUSTED_PROXIES, value: {{ join "," .Values.trustedProxies | quote }}}
+            {{- with .Values.extraEnv }}{{ toYaml . | nindent 12 }}{{- end }}
+          ports: [{name: http, containerPort: 8080}]
+          readinessProbe: {httpGet: {path: /readyz, port: http}, periodSeconds: 5}
+          livenessProbe: {httpGet: {path: /healthz, port: http}, periodSeconds: 15}
+          resources: {{ toYaml .Values.resources | nindent 12 }}
+          {{- with .Values.extraVolumeMounts }}
+          volumeMounts: {{ toYaml . | nindent 12 }}
+          {{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "listener.name" . }}
+spec:
+  selector: {app: {{ include "listener.name" . }}}
+  ports: [{name: http, port: {{ .Values.service.port }}, targetPort: http}]
+{{- end }}
+{{- if not .Values.renderFromParent }}
+{{ include "listener.receiver" . }}
+{{- end }}

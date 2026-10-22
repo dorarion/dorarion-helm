@@ -1,63 +1,400 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "type": "object",
-  "required": ["image", "existingSecret", "publicUrl", "secretKeys", "security"],
+  "required": [
+    "image",
+    "existingSecret",
+    "publicUrl",
+    "secretKeys",
+    "security"
+  ],
   "properties": {
-    "replicaCount": { "type": "integer", "minimum": 1 },
-    "revisionHistoryLimit": { "type": "integer", "minimum": 0 },
+    "replicaCount": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "revisionHistoryLimit": {
+      "type": "integer",
+      "minimum": 0
+    },
     "publicUrl": {
       "type": "string",
       "minLength": 1,
       "pattern": "^https?://",
       "description": "Absolute externally reachable Dorarion origin"
     },
-    "existingSecret": { "type": "string", "minLength": 1 },
+    "existingSecret": {
+      "type": "string",
+      "minLength": 1
+    },
     "image": {
       "type": "object",
-      "required": ["repository", "pullPolicy"],
+      "required": [
+        "repository",
+        "pullPolicy"
+      ],
       "properties": {
-        "repository": { "type": "string", "minLength": 1 },
-        "tag": { "type": "string" },
-        "pullPolicy": { "enum": ["Always", "IfNotPresent", "Never"] }
-      }
+        "repository": {
+          "type": "string",
+          "minLength": 1
+        },
+        "tag": {
+          "type": "string"
+        },
+        "pullPolicy": {
+          "enum": [
+            "Always",
+            "IfNotPresent",
+            "Never"
+          ]
+        },
+        "digest": {
+          "type": "string",
+          "pattern": "^(sha256:[a-f0-9]{64})?$"
+        },
+        "registry": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
     },
     "secretKeys": {
       "type": "object",
-      "required": ["databaseUrl", "jwtSecret", "encryptionKey"],
+      "required": [
+        "databaseUrl",
+        "jwtSecret",
+        "encryptionKey"
+      ],
       "properties": {
-        "databaseUrl": { "type": "string", "minLength": 1 },
-        "jwtSecret": { "type": "string", "minLength": 1 },
-        "encryptionKey": { "type": "string", "minLength": 1 }
-      }
+        "databaseUrl": {
+          "type": "string",
+          "minLength": 1
+        },
+        "jwtSecret": {
+          "type": "string",
+          "minLength": 1
+        },
+        "encryptionKey": {
+          "type": "string",
+          "minLength": 1
+        },
+        "bootstrapPassword": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": false
     },
     "database": {
       "type": "object",
       "properties": {
-        "connectionPoolSize": { "type": "integer", "minimum": 1 }
-      }
+        "connectionPoolSize": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "statementTimeoutMs": {
+          "type": "integer",
+          "minimum": 1000,
+          "maximum": 300000
+        },
+        "trustedHosts": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "additionalProperties": false
     },
     "security": {
       "type": "object",
-      "required": ["jwtIssuer", "jwtAudience", "jwtTtlSeconds", "refreshTokenTtlSeconds", "encryptionKeyRef"],
+      "required": [
+        "jwtIssuer",
+        "jwtAudience",
+        "jwtTtlSeconds",
+        "refreshTokenTtlSeconds",
+        "encryptionKeyRef"
+      ],
       "properties": {
-        "jwtIssuer": { "type": "string", "minLength": 1 },
-        "jwtAudience": { "type": "string", "minLength": 1 },
-        "jwtTtlSeconds": { "type": "integer", "minimum": 1 },
-        "refreshTokenTtlSeconds": { "type": "integer", "minimum": 2 },
-        "encryptionKeyRef": { "type": "string", "minLength": 1 },
-        "allowPrivateWebhookDestinations": { "type": "boolean" }
-      }
+        "jwtIssuer": {
+          "type": "string",
+          "minLength": 1
+        },
+        "jwtAudience": {
+          "type": "string",
+          "minLength": 1
+        },
+        "jwtTtlSeconds": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "refreshTokenTtlSeconds": {
+          "type": "integer",
+          "minimum": 2
+        },
+        "encryptionKeyRef": {
+          "type": "string",
+          "minLength": 1
+        },
+        "allowPrivateWebhookDestinations": {
+          "type": "boolean"
+        },
+        "secretEnvAllowlist": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "trustedProxies": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "reportRecipientDomains": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "readmeImageOrigins": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "maxItems": 16
+        },
+        "metricsScrapeTokenSecretKey": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9._-]*$"
+        }
+      },
+      "additionalProperties": false
     },
     "bootstrapAdmin": {
       "type": "object",
-      "required": ["enabled", "username", "email", "ttlSecondsAfterFinished"],
+      "required": [
+        "enabled",
+        "username",
+        "email",
+        "ttlSecondsAfterFinished"
+      ],
       "properties": {
-        "enabled": { "type": "boolean" },
-        "username": { "type": "string", "minLength": 1 },
-        "email": { "type": "string" },
-        "ttlSecondsAfterFinished": { "type": "integer", "minimum": 300 }
+        "enabled": {
+          "type": "boolean"
+        },
+        "username": {
+          "type": "string",
+          "minLength": 1
+        },
+        "email": {
+          "type": "string"
+        },
+        "ttlSecondsAfterFinished": {
+          "type": "integer",
+          "minimum": 300
+        },
+        "resources": {
+          "type": "object"
+        }
+      },
+      "additionalProperties": false
+    },
+    "terminationGracePeriodSeconds": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "allowInsecurePublicUrl": {
+      "type": "boolean"
+    },
+    "extraVolumes": {
+      "type": "array"
+    },
+    "extraVolumeMounts": {
+      "type": "array"
+    },
+    "networkPolicy": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "ingress": {
+          "type": "array"
+        },
+        "egress": {
+          "type": "array"
+        }
+      },
+      "additionalProperties": false
+    },
+    "podDisruptionBudget": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "minAvailable": {
+          "type": [
+            "integer",
+            "string"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "imagePullSecrets": {
+      "type": "array"
+    },
+    "nameOverride": {
+      "type": "string"
+    },
+    "fullnameOverride": {
+      "type": "string"
+    },
+    "service": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "type": "string"
+        },
+        "port": {
+          "type": "integer"
+        }
       }
     },
-    "terminationGracePeriodSeconds": { "type": "integer", "minimum": 1 }
-  }
+    "ingress": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "className": {
+          "type": "string"
+        },
+        "annotations": {
+          "type": "object"
+        },
+        "hosts": {
+          "type": "array"
+        },
+        "tls": {
+          "type": "array"
+        }
+      }
+    },
+    "podAnnotations": {
+      "type": "object"
+    },
+    "podLabels": {
+      "type": "object"
+    },
+    "extraEnv": {
+      "type": "array"
+    },
+    "extraEnvFrom": {
+      "type": "array"
+    },
+    "rollout": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "restartAt": {
+          "type": "string"
+        },
+        "strategy": {
+          "type": "object"
+        }
+      }
+    },
+    "podSecurityContext": {
+      "type": "object"
+    },
+    "securityContext": {
+      "type": "object"
+    },
+    "resources": {
+      "type": "object"
+    },
+    "probes": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "startup": {
+          "type": "object"
+        },
+        "liveness": {
+          "type": "object"
+        },
+        "readiness": {
+          "type": "object"
+        }
+      }
+    },
+    "migration": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "backoffLimit": {
+          "type": "integer"
+        },
+        "activeDeadlineSeconds": {
+          "type": "integer"
+        },
+        "resources": {
+          "type": "object"
+        }
+      }
+    },
+    "nodeSelector": {
+      "type": "object"
+    },
+    "tolerations": {
+      "type": "array"
+    },
+    "affinity": {
+      "type": "object"
+    },
+    "listener": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        }
+      }
+    },
+    "serviceMonitor": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "interval": {
+          "type": "string"
+        },
+        "scrapeTokenSecretKey": {
+          "type": "string"
+        }
+      }
+    },
+    "global": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "imageRegistry": {
+          "type": "string"
+        }
+      }
+    }
+  },
+  "additionalProperties": false
 }

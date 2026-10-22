@@ -1,0 +1,17 @@
+{{- if and .Values.listener.enabled .Values.listener.renderFromParent -}}
+{{/* Copy values instead of mutating shared subchart state during rendering. */}}
+{{- $child := .Subcharts.listener -}}
+{{- $values := deepCopy $child.Values -}}
+{{- if .Values.image.registry -}}
+{{- $_ := set $values.image "registry" .Values.image.registry -}}
+{{- end -}}
+{{- if .Values.imagePullSecrets -}}
+{{- $_ := set $values "imagePullSecrets" (deepCopy .Values.imagePullSecrets) -}}
+{{- end -}}
+{{- $context := dict "Values" $values "Chart" $child.Chart "Release" .Release "Capabilities" .Capabilities "Template" .Template "Files" $child.Files -}}
+{{ include "listener.receiver" $context }}
+{{- if $values.watcher.enabled }}
+---
+{{ include "listener.watcher" $context }}
+{{- end }}
+{{- end }}

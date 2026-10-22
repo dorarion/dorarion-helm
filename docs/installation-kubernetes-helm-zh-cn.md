@@ -1,12 +1,19 @@
 # Kubernetes + Helm + Dorarion
 
+> Beta 数据库说明（2026-10-10）：当前 core 使用两个合并后的迁移文件。替换旧 Beta 数据库需要新的空数据库或明确删除旧数据后重新安装。不要只删除 SQLx 记录。请从当前源码构建新镜像，并参考 README 的最新政策；以前下载的 PDF 可能包含旧流程。
+
+请使用根路径的独立 HTTPS 主机名，不支持子路径部署。仅一次性明文 PostgreSQL 示例使用下面的 Helm 参数明确允许不加密的数据库连接。生产外部数据库必须使用 sslmode=verify-full 和认可的 CA。
+
+本指南与当前源代码检出目录匹配。安装前请构建并验证匹配的 core 镜像；旧的已发布 Chart 和镜像不包含这些修复。需要 PostgreSQL 16 或更高版本。
+
+
 简易集群安装指南
 
-> **目标：** 使用公开的 OCI Helm Chart 安装 Dorarion，连接外部 PostgreSQL
+> **目标：** 使用当前检出的 Helm Chart 安装 Dorarion，连接外部 PostgreSQL
 > 数据库，创建所需的 Kubernetes Secret 和第一个管理员账户，然后验证应用。
 
 - 请在已配置为访问目标 Kubernetes 集群的终端中运行所有命令。
-- 本指南使用 Docker Hub 上的 Helm Chart `kimc1992/dorarion` 版本 `0.0.3`。
+- 请在更新后的 `dorarion-helm` 检出目录根目录中运行。
 - Dorarion 需要 Kubernetes 1.28 或更高版本以及 Helm 3。
 - 此 Chart 不安装 PostgreSQL；请先准备数据库和备份。
 - 另有 [PDF 版本](pdf/dorarion-kubernetes-helm-install-zh-cn.pdf)。
@@ -24,21 +31,23 @@ helm version
 
 如果 context 指向错误的集群，请不要继续。Kubernetes 服务端版本必须至少为 1.28。
 
-## 2. 检查已发布的 Chart
+## 2. 检查本地 Chart 和匹配的镜像
 
-直接从 Docker Hub 查看 Chart 信息：
+查看当前检出目录，并选择从匹配的 core 源代码构建的已验证镜像：
 
 ```bash
-helm show chart oci://registry-1.docker.io/kimc1992/dorarion \
-  --version 0.0.3
+helm show chart .
+
+read -r -p "Verified matching image repository: " DORARION_IMAGE_REPOSITORY
+read -r -p "Verified image digest (sha256:...): " DORARION_IMAGE_DIGEST
 ```
 
-预期的 Chart 元数据如下：
+Chart 元数据如下：
 
 - Chart：`dorarion`
 - Chart 版本：`0.0.3`
 - 应用版本：`0.0.3`
-- 应用镜像：`kimc1992/dorarion-core:0.0.3`
+- 应用镜像：已验证的仓库和不可变 digest。
 
 ## 3. 准备 PostgreSQL
 
@@ -48,7 +57,7 @@ helm show chart oci://registry-1.docker.io/kimc1992/dorarion \
 请根据数据库服务商的要求在连接 URL 中加入 TLS 参数。典型 URL 格式如下：
 
 ```text
-postgres://USER:PASSWORD@HOST:5432/DB_NAME
+postgres://USER:PASSWORD@HOST:5432/DB_NAME?sslmode=verify-full
 ```
 
 每次升级 Dorarion 前都要备份数据库，并在隔离环境中测试恢复。Helm Chart
@@ -76,11 +85,10 @@ kubectl -n dorarion create secret generic dorarion-postgresql \
   --from-literal=POSTGRES_PASSWORD="$POSTGRES_PASSWORD"
 ```
 
-直接从 GitHub 部署 PostgreSQL，并等待其就绪：
+部署当前检出目录的 PostgreSQL 示例，并等待其就绪：
 
 ```bash
-kubectl apply -f \
-  https://raw.githubusercontent.com/dorarion/dorarion-helm/master/examples/postgresql.yaml
+kubectl apply -f examples/postgresql.yaml
 
 kubectl -n dorarion rollout status deployment/dorarion-postgresql \
   --timeout=5m
@@ -99,6 +107,7 @@ POSTGRES_PASSWORD="$(kubectl -n dorarion get secret dorarion-postgresql \
 
 ```bash
 DATABASE_URL="postgres://dorarion:${POSTGRES_PASSWORD}@dorarion-postgresql.dorarion.svc.cluster.local:5432/dorarion"
+DORARION_DEMO_HELM_ARGS=(--set extraEnv[0].name=DORARION_ALLOW_INSECURE_DATABASE --set-string extraEnv[0].value=true)
 ```
 
 ## 4. 创建 namespace 和 Secret
@@ -115,7 +124,8 @@ kubectl create namespace dorarion --dry-run=client -o yaml | kubectl apply -f -
 `DATABASE_URL` 已经设置。使用外部数据库时，请先替换并运行：
 
 ```bash
-DATABASE_URL='postgres://USER:PASSWORD@HOST:5432/DB_NAME'
+DATABASE_URL='postgres://USER:PASSWORD@HOST:5432/DB_NAME?sslmode=verify-full'
+DORARION_DEMO_HELM_ARGS=()
 ```
 
 然后创建应用 Secret：
@@ -124,13 +134,15 @@ DATABASE_URL='postgres://USER:PASSWORD@HOST:5432/DB_NAME'
 : "${DATABASE_URL:?Set DATABASE_URL before continuing}"
 JWT_SECRET="$(openssl rand -hex 48)"
 SECRET_ENCRYPTION_KEY="$(openssl rand -base64 32)"
+DORARION_BOOTSTRAP_PASSWORD="$(openssl rand -hex 24)"
 
 kubectl -n dorarion create secret generic dorarion-secrets \
   --from-literal=DATABASE_URL="$DATABASE_URL" \
   --from-literal=JWT_SECRET="$JWT_SECRET" \
-  --from-literal=SECRET_ENCRYPTION_KEY="$SECRET_ENCRYPTION_KEY"
+  --from-literal=SECRET_ENCRYPTION_KEY="$SECRET_ENCRYPTION_KEY" \
+  --from-literal=DORARION_BOOTSTRAP_PASSWORD="$DORARION_BOOTSTRAP_PASSWORD"
 
-unset DATABASE_URL POSTGRES_PASSWORD JWT_SECRET SECRET_ENCRYPTION_KEY
+unset DATABASE_URL POSTGRES_PASSWORD JWT_SECRET SECRET_ENCRYPTION_KEY DORARION_BOOTSTRAP_PASSWORD
 ```
 
 > **请妥善保护这些值。** 不要提交到 Git、写入 Helm values，或发布到聊天、
@@ -143,7 +155,7 @@ unset DATABASE_URL POSTGRES_PASSWORD JWT_SECRET SECRET_ENCRYPTION_KEY
 kubectl -n dorarion describe secret dorarion-secrets
 ```
 
-必须包含 `DATABASE_URL`、`JWT_SECRET` 和 `SECRET_ENCRYPTION_KEY`。
+必须包含 `DATABASE_URL`、`JWT_SECRET`、`SECRET_ENCRYPTION_KEY` 和 `DORARION_BOOTSTRAP_PASSWORD`。
 
 ## 5. 安装 Dorarion 并创建第一个管理员
 
@@ -152,9 +164,11 @@ bootstrap：
 
 ```bash
 helm upgrade --install dorarion \
-  oci://registry-1.docker.io/kimc1992/dorarion \
-  --version 0.0.3 \
+  . \
+  "${DORARION_DEMO_HELM_ARGS[@]}" \
   --namespace dorarion \
+  --set-string image.repository="$DORARION_IMAGE_REPOSITORY" \
+  --set-string image.digest="$DORARION_IMAGE_DIGEST" \
   --set publicUrl=https://dorarion.example.com \
   --set bootstrapAdmin.enabled=true \
   --set bootstrapAdmin.username=admin \
@@ -175,21 +189,11 @@ helm upgrade --install dorarion \
 
 ## 6. 保存管理员密码
 
-bootstrap Job 只输出一次生成的密码。查看日志：
-
-```bash
-kubectl -n dorarion logs job/dorarion-bootstrap-admin
-```
-
-立即将密码保存到密码管理器。然后删除 Job，避免可读取 namespace 的用户从
-日志中获取凭据：
+bootstrap 从预先创建的 Secret 读取 DORARION_BOOTSTRAP_PASSWORD（至少 16 个字符），不会输出密码。在清除 shell 变量前保存到密码管理器。登录时从管理器或 Secret 获取密码。验证后可删除已完成的 Job。已有安装不要再次启用 bootstrap。
 
 ```bash
 kubectl -n dorarion delete job dorarion-bootstrap-admin
 ```
-
-不要在此数据库上再次启用 `bootstrapAdmin`。如果登录账户已经存在，Dorarion
-会拒绝再次 bootstrap，但升级时仍应明确禁用它。
 
 ## 7. 检查安装
 
@@ -256,8 +260,8 @@ ingress:
 
 ```bash
 helm upgrade dorarion \
-  oci://registry-1.docker.io/kimc1992/dorarion \
-  --version 0.0.3 \
+  . \
+  "${DORARION_DEMO_HELM_ARGS[@]}" \
   --namespace dorarion \
   --reuse-values \
   --set bootstrapAdmin.enabled=false \
@@ -282,7 +286,7 @@ helm upgrade dorarion \
 
 ```bash
 helm upgrade dorarion \
-  oci://registry-1.docker.io/kimc1992/dorarion \
+  . \
   --version NEW_CHART_VERSION \
   --namespace dorarion \
   --reuse-values \
@@ -324,7 +328,7 @@ kubectl -n dorarion delete secret dorarion-postgresql
 - 或者仅为测试部署了单节点 PostgreSQL 示例。
 - 已创建 namespace 和必需的 Kubernetes Secret。
 - 仅在首次安装时启用 bootstrap 并安装 Dorarion。
-- 已保存生成的管理员密码并删除 bootstrap Job。
+- 已在密码管理器保存预先创建的管理员密码；bootstrap 日志不包含密码。
 - 已验证 Deployment、readiness 和浏览器访问。
 - 后续升级保持 bootstrap 禁用。
 
@@ -335,3 +339,21 @@ kubectl -n dorarion delete secret dorarion-postgresql
 - [安装 Helm](https://helm.sh/docs/intro/install/)
 - [Helm OCI Registry](https://helm.sh/docs/topics/registries/)
 - [安装 kubectl](https://kubernetes.io/docs/tasks/tools/)
+
+## 安装与升级 — reviewed core
+
+这些设置针对已审查的 1.0 之前 core 源码。请选择由该源码构建的镜像；现有 v0.0.3 标签不能证明包含本次修复。
+
+1.0 之前版本：请使用所选镜像附带的 API 契约。已审查源码支持 CI/CD、运维任务、事故及每日/每周活动报告。
+
+- 一次生成 `JWT_SECRET`（至少 32 字节）和 `SECRET_ENCRYPTION_KEY`（32 个随机字节的 Base64），不要提交到 Git。
+- API 连接池默认 15；每个副本还需预留 6 个 worker 连接及临时迁移连接。
+- Compose 仅显式信任内部 `postgres` 主机；外部 PostgreSQL 需要 `sslmode=verify-full` 和可信 CA。
+- 外部凭据使用 `env://DORARION_EXT_<NAME>`；core 秘密环境变量始终被拒绝。
+- Argo CD 使用独立轮换的应用令牌，应用和集成都须启用。事故自动化使用限定仓库的 incident source。
+
+`/health/live` 检查进程，`/health/ready` 检查 PostgreSQL。worker 状态单独通过需认证的 `/health/workers` 查看。Prometheus 使用 Secret 中 32–512 个 ASCII 字符的 `DORARION_METRICS_SCRAPE_TOKEN`，仅发送至 `/metrics`。接受转发的客户端地址前必须配置可信代理网络。
+
+前向迁移前备份 PostgreSQL 和原始加密密钥。单独运行迁移 Job/服务，关闭服务器启动迁移。首次登录修改生成的管理员密码，升级后轮换 Argo 应用令牌。审计保留不能短于 365 天。每周报告覆盖发送前完整的本地 7 天；重试同一次手动发送应复用 Idempotency-Key。重新打开事故必须显式请求。演示端点已删除，未知请求字段被拒绝，请检查镜像内的 API 契约。上线前在自己的环境验证恢复、供应商消息和 readiness。
+
+Helm: `database.connectionPoolSize=15`, `database.statementTimeoutMs=30000`, `database.trustedHosts=[]`, `security.secretEnvAllowlist=[]`, `security.trustedProxies=[]`, `security.reportRecipientDomains=[]`, `security.readmeImageOrigins=[]`. Optional monitoring credentials belong in the existing Secret; select their key with `security.metricsScrapeTokenSecretKey`. Hook Jobs receive the same policy and `extraEnvFrom` as the server.

@@ -1,13 +1,20 @@
 # Kubernetes + Helm + Dorarion
 
+> Beta baseline note (2026-10-10): current core installs two consolidated migrations. Replacing an earlier beta DB requires a new empty DB or an explicit reinstall that discards old data. Do not delete only the SQLx ledger. Use a fresh image built from this source. The README contains the current policy; an earlier downloaded PDF may describe the previous chain.
+
+Use a dedicated HTTPS hostname with a root path. Sub-path installations are not supported. For the disposable plaintext PostgreSQL example only, the following Helm arguments explicitly allow insecure database transport. External production databases require sslmode=verify-full and an approved CA.
+
+This guide matches the current source checkout. Build and verify a matching core image before installation; older published chart/image versions do not contain these fixes. PostgreSQL 16+ is required.
+
+
 Simple cluster installation guide
 
-> **Goal:** Install Dorarion from its public OCI Helm chart, connect it to an
+> **Goal:** Install Dorarion from the checked-out Helm chart, connect it to an
 > external PostgreSQL database, create the required Kubernetes Secret, create
 > the first administrator, and verify the application.
 
 - Run all commands from a terminal configured to access your Kubernetes cluster.
-- This guide uses Helm chart `kimc1992/dorarion` version `0.0.3` from Docker Hub.
+- Run from the root of this updated `dorarion-helm` checkout.
 - Dorarion requires Kubernetes 1.28 or newer and Helm 3.
 - PostgreSQL is not installed by this chart; prepare a database and backups first.
 - A [PDF version](pdf/dorarion-kubernetes-helm-install-en.pdf) is also available.
@@ -26,21 +33,23 @@ helm version
 Do not continue if the context names the wrong cluster. Dorarion requires a
 Kubernetes server version of at least 1.28.
 
-## 2. Check the published chart
+## 2. Check the local chart and matching image
 
-Inspect the chart directly from Docker Hub:
+Inspect this checkout and select an image built from the matching core source:
 
 ```bash
-helm show chart oci://registry-1.docker.io/kimc1992/dorarion \
-  --version 0.0.3
+helm show chart .
+
+read -r -p "Verified matching image repository: " DORARION_IMAGE_REPOSITORY
+read -r -p "Verified image digest (sha256:...): " DORARION_IMAGE_DIGEST
 ```
 
-The expected chart metadata is:
+The chart metadata is:
 
 - Chart: `dorarion`
 - Chart version: `0.0.3`
 - Application version: `0.0.3`
-- Application image: `kimc1992/dorarion-core:0.0.3`
+- Application image: your verified repository and immutable digest.
 
 ## 3. Prepare PostgreSQL
 
@@ -52,7 +61,7 @@ Use your database provider's TLS requirements in the connection URL. A typical
 URL has this form:
 
 ```text
-postgres://USER:PASSWORD@HOST:5432/DB_NAME
+postgres://USER:PASSWORD@HOST:5432/DB_NAME?sslmode=verify-full
 ```
 
 Back up the database before every Dorarion upgrade. Test restoration separately;
@@ -81,11 +90,10 @@ kubectl -n dorarion create secret generic dorarion-postgresql \
   --from-literal=POSTGRES_PASSWORD="$POSTGRES_PASSWORD"
 ```
 
-Deploy PostgreSQL directly from GitHub and wait until it is ready:
+Deploy the checked-out PostgreSQL example and wait until it is ready:
 
 ```bash
-kubectl apply -f \
-  https://raw.githubusercontent.com/dorarion/dorarion-helm/master/examples/postgresql.yaml
+kubectl apply -f examples/postgresql.yaml
 
 kubectl -n dorarion rollout status deployment/dorarion-postgresql \
   --timeout=5m
@@ -105,6 +113,7 @@ For this example, set the database URL used in the next section:
 
 ```bash
 DATABASE_URL="postgres://dorarion:${POSTGRES_PASSWORD}@dorarion-postgresql.dorarion.svc.cluster.local:5432/dorarion"
+DORARION_DEMO_HELM_ARGS=(--set extraEnv[0].name=DORARION_ALLOW_INSECURE_DATABASE --set-string extraEnv[0].value=true)
 ```
 
 ## 4. Create the namespace and Secret
@@ -123,7 +132,8 @@ Secret. If you used the PostgreSQL example, `DATABASE_URL` is already set.
 For an external database, replace and run this first:
 
 ```bash
-DATABASE_URL='postgres://USER:PASSWORD@HOST:5432/DB_NAME'
+DATABASE_URL='postgres://USER:PASSWORD@HOST:5432/DB_NAME?sslmode=verify-full'
+DORARION_DEMO_HELM_ARGS=()
 ```
 
 Then create the application Secret:
@@ -132,13 +142,15 @@ Then create the application Secret:
 : "${DATABASE_URL:?Set DATABASE_URL before continuing}"
 JWT_SECRET="$(openssl rand -hex 48)"
 SECRET_ENCRYPTION_KEY="$(openssl rand -base64 32)"
+DORARION_BOOTSTRAP_PASSWORD="$(openssl rand -hex 24)"
 
 kubectl -n dorarion create secret generic dorarion-secrets \
   --from-literal=DATABASE_URL="$DATABASE_URL" \
   --from-literal=JWT_SECRET="$JWT_SECRET" \
-  --from-literal=SECRET_ENCRYPTION_KEY="$SECRET_ENCRYPTION_KEY"
+  --from-literal=SECRET_ENCRYPTION_KEY="$SECRET_ENCRYPTION_KEY" \
+  --from-literal=DORARION_BOOTSTRAP_PASSWORD="$DORARION_BOOTSTRAP_PASSWORD"
 
-unset DATABASE_URL POSTGRES_PASSWORD JWT_SECRET SECRET_ENCRYPTION_KEY
+unset DATABASE_URL POSTGRES_PASSWORD JWT_SECRET SECRET_ENCRYPTION_KEY DORARION_BOOTSTRAP_PASSWORD
 ```
 
 > **Protect these values.** Never commit them to Git, store them in Helm values,
@@ -152,7 +164,7 @@ Check only the Secret's key names, without printing their values:
 kubectl -n dorarion describe secret dorarion-secrets
 ```
 
-It must contain `DATABASE_URL`, `JWT_SECRET`, and `SECRET_ENCRYPTION_KEY`.
+It must contain `DATABASE_URL`, `JWT_SECRET`, `SECRET_ENCRYPTION_KEY`, and `DORARION_BOOTSTRAP_PASSWORD`.
 
 ## 5. Install Dorarion and create the first administrator
 
@@ -161,9 +173,11 @@ Dorarion and enable administrator bootstrap for this first installation only:
 
 ```bash
 helm upgrade --install dorarion \
-  oci://registry-1.docker.io/kimc1992/dorarion \
-  --version 0.0.3 \
+  . \
+  "${DORARION_DEMO_HELM_ARGS[@]}" \
   --namespace dorarion \
+  --set-string image.repository="$DORARION_IMAGE_REPOSITORY" \
+  --set-string image.digest="$DORARION_IMAGE_DIGEST" \
   --set publicUrl=https://dorarion.example.com \
   --set bootstrapAdmin.enabled=true \
   --set bootstrapAdmin.username=admin \
@@ -184,22 +198,11 @@ The installation performs these operations in order:
 
 ## 6. Save the administrator password
 
-The bootstrap Job prints its generated password once. Read its logs:
-
-```bash
-kubectl -n dorarion logs job/dorarion-bootstrap-admin
-```
-
-Save the password immediately in a password manager. Then remove the Job so
-namespace readers cannot retrieve the credential from its logs:
+Bootstrap reads DORARION_BOOTSTRAP_PASSWORD from the pre-created Secret (at least 16 characters); it never prints the password. Save it in your secret manager before unsetting the shell variable. Retrieve it from that manager or the Secret for login. The completed Job can be removed after verification. Never enable bootstrap again for an existing installation.
 
 ```bash
 kubectl -n dorarion delete job dorarion-bootstrap-admin
 ```
-
-Never enable `bootstrapAdmin` again for this database. Dorarion refuses to
-bootstrap another administrator after a login account exists, but upgrades
-should still explicitly leave it disabled.
 
 ## 7. Check the installation
 
@@ -266,8 +269,8 @@ Apply it without enabling administrator bootstrap:
 
 ```bash
 helm upgrade dorarion \
-  oci://registry-1.docker.io/kimc1992/dorarion \
-  --version 0.0.3 \
+  . \
+  "${DORARION_DEMO_HELM_ARGS[@]}" \
   --namespace dorarion \
   --reuse-values \
   --set bootstrapAdmin.enabled=false \
@@ -292,7 +295,7 @@ Then upgrade, keeping administrator bootstrap disabled:
 
 ```bash
 helm upgrade dorarion \
-  oci://registry-1.docker.io/kimc1992/dorarion \
+  . \
   --version NEW_CHART_VERSION \
   --namespace dorarion \
   --reuse-values \
@@ -338,7 +341,7 @@ to destroy the sample database and have any required backup.
 - Or, for testing only, the single-node PostgreSQL example deployed.
 - Namespace and required Kubernetes Secret created.
 - Dorarion installed with first-install bootstrap enabled once.
-- Generated administrator password saved and bootstrap Job removed.
+- Pre-created administrator password stored in the secret manager; bootstrap logs contain no password.
 - Deployment, readiness, and browser access verified.
 - Future upgrades configured with bootstrap disabled.
 
@@ -349,3 +352,21 @@ to destroy the sample database and have any required backup.
 - [Install Helm](https://helm.sh/docs/intro/install/)
 - [Helm OCI registries](https://helm.sh/docs/topics/registries/)
 - [Install kubectl](https://kubernetes.io/docs/tasks/tools/)
+
+## Installation and upgrades — reviewed core
+
+These settings describe the reviewed pre-1.0 core source. Select an image built from that source; an existing v0.0.3 registry tag does not prove it contains the remediation changes.
+
+Pre-1.0: use the API contract shipped with the selected image. The reviewed source implements CI/CD, jobs, incidents and daily/weekly activity reporting.
+
+- Generate `JWT_SECRET` (at least 32 bytes) and `SECRET_ENCRYPTION_KEY` (Base64 encoding of 32 random bytes) once. Keep both outside version control.
+- The API pool defaults to 15 connections; allow another six worker connections per replica and temporary migration connections.
+- Compose trusts only its exact internal `postgres` host. External PostgreSQL needs `sslmode=verify-full` and the trusted CA.
+- Use `env://DORARION_EXT_<NAME>` for external credentials. Core secret variables are always denied.
+- Argo CD needs a separately rotated application token and an active application/integration. Incident automation needs a repository-scoped incident source.
+
+`/health/live` checks the process; `/health/ready` checks PostgreSQL. Worker health is separate at authenticated `/health/workers`. For Prometheus, store a 32–512-character ASCII `DORARION_METRICS_SCRAPE_TOKEN` in a Secret and use it only at `/metrics`. Configure exact trusted proxy networks before honoring forwarded client addresses.
+
+Back up PostgreSQL and the exact encryption key before forward migrations. Run the migration Job/service once and disable server startup migrations. Change the generated bootstrap password on first login. Rotate Argo application tokens after upgrading. Audit retention cannot be shorter than 365 days. Weekly reports cover the seven complete local days before sending; reuse the same Idempotency-Key when retrying one manual send. Incident reopening must be explicit. Read the bundled API contract: demo routes were removed and unknown request fields are rejected. Validate backups, provider delivery and readiness in your environment before production rollout.
+
+Helm: `database.connectionPoolSize=15`, `database.statementTimeoutMs=30000`, `database.trustedHosts=[]`, `security.secretEnvAllowlist=[]`, `security.trustedProxies=[]`, `security.reportRecipientDomains=[]`, `security.readmeImageOrigins=[]`. Optional monitoring credentials belong in the existing Secret; select their key with `security.metricsScrapeTokenSecretKey`. Hook Jobs receive the same policy and `extraEnvFrom` as the server.

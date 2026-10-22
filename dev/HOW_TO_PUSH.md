@@ -1,4 +1,10 @@
-# How to publish Dorarion
+# Historical manual publishing procedure
+
+Application releases now use the core `.github/workflows/release.yml` verified
+CI, organizational GHCR image digest, SBOM, scan and OIDC signature workflow.
+The commands below are retained as a development reference, not a supported
+production release path. Do not promote personally hosted or unsigned images.
+Use a new immutable version and the verified digest for Helm promotion.
 
 Publish in this order:
 

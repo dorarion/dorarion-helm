@@ -1,0 +1,100 @@
+{{- define "listener.watcher" -}}
+{{- if .Values.watcher.enabled }}
+{{- if not (hasPrefix "https://" .Values.watcher.receiverUrl) }}{{ fail "watcher.receiverUrl must use HTTPS" }}{{- end }}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ include "listener.name" . }}-watcher
+---
+{{- range .Values.watcher.namespaces }}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "listener.name" $ }}-watcher
+  namespace: {{ . }}
+rules:
+  - apiGroups: [argoproj.io]
+    resources: [applications]
+    verbs: [get, list, watch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "listener.name" $ }}-watcher
+  namespace: {{ . }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "listener.name" $ }}-watcher
+    namespace: {{ $.Release.Namespace }}
+roleRef: {apiGroup: rbac.authorization.k8s.io, kind: Role, name: {{ include "listener.name" $ }}-watcher}
+---
+{{- end }}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "listener.name" . }}-lease
+  namespace: {{ default .Release.Namespace .Values.watcher.leaseNamespace }}
+rules:
+  - apiGroups: [coordination.k8s.io]
+    resources: [leases]
+    verbs: [get, create, update]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "listener.name" . }}-lease
+  namespace: {{ default .Release.Namespace .Values.watcher.leaseNamespace }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "listener.name" . }}-watcher
+    namespace: {{ .Release.Namespace }}
+roleRef: {apiGroup: rbac.authorization.k8s.io, kind: Role, name: {{ include "listener.name" . }}-lease}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "listener.name" . }}-watcher
+spec:
+  replicas: {{ .Values.watcher.replicaCount }}
+  selector:
+    matchLabels: {app: {{ include "listener.name" . }}-watcher}
+  template:
+    metadata:
+      labels: {app: {{ include "listener.name" . }}-watcher}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets: {{ toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "listener.name" . }}-watcher
+      terminationGracePeriodSeconds: 30
+      securityContext: {runAsNonRoot: true, runAsUser: 10001, runAsGroup: 10001, seccompProfile: {type: RuntimeDefault}}
+      {{- with .Values.extraVolumes }}
+      volumes: {{ toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: watcher
+          image: {{ include "listener.image" . | quote }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args: [argocd-watcher]
+          securityContext: {allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: {drop: [ALL]}}
+          env:
+            - {name: LISTENER_RECEIVER_URL, value: {{ .Values.watcher.receiverUrl | quote }}}
+            - {name: WATCH_NAMESPACES, value: {{ join "," .Values.watcher.namespaces | quote }}}
+            - {name: APP_LABEL_SELECTOR, value: {{ .Values.watcher.labelSelector | quote }}}
+            - {name: LISTENER_LEASE_NAMESPACE, value: {{ default .Release.Namespace .Values.watcher.leaseNamespace | quote }}}
+            - {name: LISTENER_LEASE_NAME, value: {{ include "listener.name" . }}-watcher}
+            - name: LISTENER_WATCHER_TOKEN
+              valueFrom:
+                secretKeyRef: {name: {{ .Values.watcher.existingSecret }}, key: {{ .Values.watcher.tokenKey }}}
+            - name: LISTENER_INSTANCE
+              valueFrom: {fieldRef: {fieldPath: metadata.name}}
+            {{- with .Values.extraEnv }}{{ toYaml . | nindent 12 }}{{- end }}
+          resources: {{ toYaml .Values.resources | nindent 12 }}
+          {{- with .Values.extraVolumeMounts }}
+          volumeMounts: {{ toYaml . | nindent 12 }}
+          {{- end }}
+{{- end }}
+{{- end }}
+{{- if not .Values.renderFromParent }}
+{{ include "listener.watcher" . }}
+{{- end }}

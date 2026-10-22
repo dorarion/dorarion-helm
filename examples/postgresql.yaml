@@ -36,7 +36,7 @@ spec:
       automountServiceAccountToken: false
       containers:
         - name: postgresql
-          image: postgres:17-bookworm
+          image: postgres:18@sha256:fc973eb97c9fd04bfa1840e0f510719a584ccb3be8debfe6a4144637a9dfe8cf
           imagePullPolicy: IfNotPresent
           env:
             - name: POSTGRES_DB

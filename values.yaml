@@ -1,10 +1,17 @@
+global:
+  # Shared registry override also reaches the vendored listener dependency.
+  imageRegistry: ""
 replicaCount: 1
 revisionHistoryLimit: 3
 
 image:
-  repository: kimc1992/dorarion-core
+  # Overrides core, receiver and watcher; global.imageRegistry takes precedence.
+  registry: ""
+  repository: ghcr.io/dorarion/dorarion-core
   pullPolicy: IfNotPresent
-  tag: "0.0.3"
+  # Select an image built from the reviewed core source; old tags are not republished.
+  tag: ""
+  digest: ""
 
 imagePullSecrets: []
 nameOverride: ""
@@ -13,6 +20,7 @@ fullnameOverride: ""
 # Absolute browser origin used for secure cookies, GitLab CI reporting URLs,
 # and links returned by Dorarion. Set this explicitly for every installation.
 publicUrl: ""
+allowInsecurePublicUrl: false
 
 # This Secret must exist before `helm install` because the migration Job is a
 # pre-install/pre-upgrade hook. Do not put credentials directly in values.yaml.
@@ -21,9 +29,13 @@ secretKeys:
   databaseUrl: DATABASE_URL
   jwtSecret: JWT_SECRET
   encryptionKey: SECRET_ENCRYPTION_KEY
+  bootstrapPassword: DORARION_BOOTSTRAP_PASSWORD
 
 database:
-  connectionPoolSize: 10
+  connectionPoolSize: 15
+  statementTimeoutMs: 30000
+  # Exact hosts on a reviewed private network only; external URLs need verify-full.
+  trustedHosts: []
 
 security:
   jwtIssuer: dorarion-core
@@ -32,9 +44,16 @@ security:
   refreshTokenTtlSeconds: 2592000
   encryptionKeyRef: local:v1
   allowPrivateWebhookDestinations: false
+  # External env:// secrets should normally use the DORARION_EXT_ prefix.
+  # Key in existingSecret, not the plaintext token. Empty keeps admin-only metrics.
+  metricsScrapeTokenSecretKey: ""
+  secretEnvAllowlist: []
+  trustedProxies: []
+  reportRecipientDomains: []
+  readmeImageOrigins: []
 
 # Optional first-install administrator. Enable only for a new, empty Dorarion
-# database. The generated password is printed once in the bootstrap Job logs.
+# database. Supply a >=16-character password through the existing Secret.
 bootstrapAdmin:
   enabled: false
   username: admin
@@ -69,6 +88,16 @@ podLabels: {}
 # webhook variables. Do not put their literal values in values.yaml.
 extraEnv: []
 extraEnvFrom: []
+extraVolumes: []
+extraVolumeMounts: []
+
+networkPolicy:
+  enabled: false
+  ingress: []
+  egress: []
+podDisruptionBudget:
+  enabled: false
+  minAvailable: 1
 
 rollout:
   restartAt: ""
@@ -78,7 +107,8 @@ rollout:
       maxUnavailable: 0
       maxSurge: 1
 
-terminationGracePeriodSeconds: 30
+# Allow workers to drain bounded outbound requests before Kubernetes sends SIGKILL.
+terminationGracePeriodSeconds: 120
 
 podSecurityContext:
   runAsNonRoot: true
@@ -129,3 +159,14 @@ migration:
 nodeSelector: {}
 tolerations: []
 affinity: {}
+
+# The chart is vendored for reproducible, offline installation.
+listener:
+  enabled: false
+  renderFromParent: true
+  watcher:
+    enabled: false
+serviceMonitor:
+  enabled: false
+  interval: 30s
+  scrapeTokenSecretKey: DORARION_METRICS_SCRAPE_TOKEN

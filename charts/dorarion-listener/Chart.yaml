@@ -1,0 +1,7 @@
+apiVersion: v2
+name: dorarion-listener
+description: Durable receiver and optional Argo CD watcher for Dorarion
+version: 0.1.0
+appVersion: "0.1.0"
+type: application
+kubeVersion: ">=1.29.0-0"

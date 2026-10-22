@@ -37,6 +37,10 @@ spec:
       {{- end }}
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      {{- with .Values.extraVolumes }}
+      volumes:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       containers:
         - name: dorarion
           image: {{ include "dorarion.image" . | quote }}
@@ -45,6 +49,9 @@ spec:
           securityContext:
             {{- toYaml .Values.securityContext | nindent 12 }}
           env:
+            {{- include "dorarion.installationPolicyEnv" . | nindent 12 }}
+            - name: DORARION_MIGRATE_ON_START
+              value: "false"
             - name: DATABASE_URL
               valueFrom:
                 secretKeyRef:
@@ -52,6 +59,8 @@ spec:
                   key: {{ .Values.secretKeys.databaseUrl }}
             - name: DB_CONNECTION_POOL_SIZE
               value: {{ .Values.database.connectionPoolSize | int64 | quote }}
+            - name: DORARION_COOKIE_SECURE
+              value: {{ hasPrefix "https://" (include "dorarion.publicUrl" .) | quote }}
             - name: DORARION_PUBLIC_URL
               value: {{ include "dorarion.publicUrl" . | quote }}
             - name: JWT_SECRET
@@ -102,6 +111,10 @@ spec:
               path: /health/ready
               port: http
             {{- toYaml .Values.probes.readiness | nindent 12 }}
+          {{- with .Values.extraVolumeMounts }}
+          volumeMounts:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
       {{- with .Values.nodeSelector }}

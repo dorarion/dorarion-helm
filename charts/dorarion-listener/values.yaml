@@ -1,0 +1,45 @@
+global:
+  imageRegistry: ""
+# Parent chart supplies workload context; standalone rendering remains the default.
+renderFromParent: false
+replicaCount: 2
+image:
+  registry: docker.io
+  repository: dorarion/dorarion-listener
+  tag: "0.1.0"
+  digest: ""
+  pullPolicy: IfNotPresent
+imagePullSecrets: []
+existingSecret: dorarion-listener-secrets
+databaseUrlKey: DATABASE_URL
+# Set to a key in existingSecret to enable protected receiver metrics.
+metricsTokenKey: ""
+trustedDatabaseHosts: []
+trustedProxies: []
+service:
+  port: 8080
+resources:
+  requests:
+    cpu: 100m
+    memory: 64Mi
+  limits:
+    memory: 256Mi
+watcher:
+  enabled: false
+  replicaCount: 2
+  existingSecret: dorarion-watcher-secrets
+  tokenKey: LISTENER_WATCHER_TOKEN
+  receiverUrl: ""
+  namespaces: [argocd]
+  labelSelector: "dorarion.io/track=true"
+  leaseNamespace: ""
+extraEnv: []
+extraVolumes: []
+extraVolumeMounts: []
+networkPolicy:
+  enabled: false
+  ingress: []
+  egress: []
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
