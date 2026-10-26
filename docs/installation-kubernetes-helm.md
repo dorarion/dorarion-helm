@@ -47,8 +47,8 @@ read -r -p "Verified image digest (sha256:...): " DORARION_IMAGE_DIGEST
 The chart metadata is:
 
 - Chart: `dorarion`
-- Chart version: `0.0.3`
-- Application version: `0.0.3`
+- Chart version: `0.1.2`
+- Application version: `0.0.6`
 - Application image: your verified repository and immutable digest.
 
 ## 3. Prepare PostgreSQL

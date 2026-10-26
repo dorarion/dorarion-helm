@@ -9,9 +9,9 @@ image:
   registry: ""
   repository: docker.io/kimc1992/dorarion-core
   pullPolicy: IfNotPresent
-  # Docker Hub 0.0.5 linux/amd64 image supplied for release testing.
-  tag: "0.0.5"
-  digest: "sha256:0dbc38be4c403cd2e7d9ac1bf29761364d9832063d3638ed8cfde06dba4e6061"
+  # Docker Hub core 0.0.6; set digest after verifying the published image.
+  tag: "0.0.6"
+  digest: ""
 
 imagePullSecrets: []
 nameOverride: ""

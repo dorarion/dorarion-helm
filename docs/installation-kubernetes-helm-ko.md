@@ -47,8 +47,8 @@ read -r -p "Verified image digest (sha256:...): " DORARION_IMAGE_DIGEST
 차트 메타데이터는 다음과 같습니다.
 
 - 차트: `dorarion`
-- 차트 버전: `0.0.3`
-- 애플리케이션 버전: `0.0.3`
+- 차트 버전: `0.1.2`
+- 애플리케이션 버전: `0.0.6`
 - 애플리케이션 이미지: 검증된 저장소와 변경 불가능한 digest.
 
 ## 3. PostgreSQL 준비

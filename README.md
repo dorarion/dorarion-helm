@@ -7,11 +7,12 @@ migration fails.
 
 ## Images selected for testing
 
-The checked-out chart defaults to Docker Hub core `kimc1992/dorarion-core:0.0.5`
-and listener `kimc1992/dorarion-listener:0.0.1`, pinned to the supplied
-linux/amd64 manifest digests. Listener remains optional. These pins select exact
-artifacts; they do not establish that the images contain the current source fixes.
-Use an amd64 node for these images. Previously packaged `.tgz` archives are unchanged.
+Chart `0.1.2` defaults to Docker Hub core `kimc1992/dorarion-core:0.0.6`.
+The core tag must be published before installation or upgrade. `image.digest` is
+empty; set it to the verified registry digest to pin an exact core artifact.
+The optional listener remains `kimc1992/dorarion-listener:0.0.1`, pinned to its
+existing linux/amd64 manifest digest. Use an amd64 node when enabling that image.
+Previously packaged `.tgz` archives are unchanged.
 
 Render the release images, including receiver and watcher, before installing:
 
@@ -53,7 +54,7 @@ in Markdown and PDF:
 
 ## Install
 
-The defaults select the pinned core `0.0.5` test image. To use another release,
+The defaults select the core `0.0.6` tag. To use another release,
 override `image.repository` and `image.digest` with that release's coordinates.
 
 Create credentials before installation because the migration hook runs before

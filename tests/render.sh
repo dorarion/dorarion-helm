@@ -60,7 +60,7 @@ grep -Fq 'kind: NetworkPolicy' <<<"$policies"
 grep -Fq 'kind: PodDisruptionBudget' <<<"$policies"
 grep -Fq 'name: DORARION_MIGRATE_ON_START' <<<"$policies"
 grep -Fq 'sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' <<<"$policies"
-# Check the published test pins on every workload, including the optional listener.
+# Check release image selection on every workload, including the optional listener.
 release="$(helm template release-test "$CHART_DIR" \
   --set publicUrl=https://dorarion.example.com \
   --set bootstrapAdmin.enabled=true --set bootstrapAdmin.email=admin@example.com \
@@ -73,7 +73,7 @@ assert len(workloads)==5, len(workloads)
 for d in workloads:
     for c in d["spec"]["template"]["spec"]["containers"]:
         listener="listener" in d["metadata"]["name"]
-        expected=("docker.io/kimc1992/dorarion-listener@sha256:7427a98bce965ca4ebfa9a95c4f7bc99bbcdbadf88484a1b027378c497deeaf6" if listener else "docker.io/kimc1992/dorarion-core@sha256:0dbc38be4c403cd2e7d9ac1bf29761364d9832063d3638ed8cfde06dba4e6061")
+        expected=("docker.io/kimc1992/dorarion-listener@sha256:7427a98bce965ca4ebfa9a95c4f7bc99bbcdbadf88484a1b027378c497deeaf6" if listener else "docker.io/kimc1992/dorarion-core:0.0.6")
         assert c["image"]==expected, c["image"]
 '
 if ! command -v kubeconform >/dev/null; then echo 'kubeconform is required' >&2; exit 1; fi

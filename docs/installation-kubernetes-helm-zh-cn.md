@@ -45,8 +45,8 @@ read -r -p "Verified image digest (sha256:...): " DORARION_IMAGE_DIGEST
 Chart 元数据如下：
 
 - Chart：`dorarion`
-- Chart 版本：`0.0.3`
-- 应用版本：`0.0.3`
+- Chart 版本：`0.1.2`
+- 应用版本：`0.0.6`
 - 应用镜像：已验证的仓库和不可变 digest。
 
 ## 3. 准备 PostgreSQL
