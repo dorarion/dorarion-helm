@@ -47,8 +47,8 @@ read -r -p "Verified image digest (sha256:...): " DORARION_IMAGE_DIGEST
 차트 메타데이터는 다음과 같습니다.
 
 - 차트: `dorarion`
-- 차트 버전: `0.1.2`
-- 애플리케이션 버전: `0.0.6`
+- 차트 버전: `0.1.4`
+- 애플리케이션 버전: `0.0.7`
 - 애플리케이션 이미지: 검증된 저장소와 변경 불가능한 digest.
 
 ## 3. PostgreSQL 준비
@@ -356,7 +356,7 @@ kubectl -n dorarion delete secret dorarion-postgresql
 
 ## 설치와 업그레이드 — reviewed core
 
-이 설정은 검토된 1.0 이전 core 소스를 기준으로 합니다. 해당 소스로 빌드한 이미지를 선택하세요. 기존 v0.0.3 레지스트리 태그만으로 보안 개선 포함 여부를 확인할 수 없습니다.
+이 설정은 검토된 1.0 이전 core 소스를 기준으로 합니다. 해당 소스로 빌드한 이미지를 선택하세요. 기존 이전 레지스트리 태그만으로 보안 개선 포함 여부를 확인할 수 없습니다.
 
 1.0 이전 버전입니다. 선택한 이미지의 API 계약을 기준으로 연동하세요. 검토된 소스는 CI/CD, 운영 작업, 장애 및 일간·주간 활동 보고를 지원합니다.
 
@@ -371,3 +371,30 @@ kubectl -n dorarion delete secret dorarion-postgresql
 전진 마이그레이션 전에 PostgreSQL과 정확한 암호화 키를 백업하세요. 마이그레이션 Job 또는 서비스를 한 번 실행하고 서버 시작 시 마이그레이션은 끕니다. 첫 로그인에서 생성된 관리자 비밀번호를 변경하고 업그레이드 후 Argo 애플리케이션 토큰을 회전하세요. 감사 보존 기간은 365일보다 짧을 수 없습니다. 주간 보고는 발송 전 완료된 현지 날짜 7일이며 수동 발송 재시도에는 같은 Idempotency-Key를 사용합니다. 장애 재개는 명시해야 합니다. 데모 경로는 제거되었고 알 수 없는 요청 필드는 거부되므로 이미지에 포함된 API 계약을 확인하세요. 운영 배포 전에 백업 복원, 공급자 전송과 readiness를 검증하세요.
 
 Helm: `database.connectionPoolSize=15`, `database.statementTimeoutMs=30000`, `database.trustedHosts=[]`, `security.secretEnvAllowlist=[]`, `security.trustedProxies=[]`, `security.reportRecipientDomains=[]`, `security.readmeImageOrigins=[]`. Optional monitoring credentials belong in the existing Secret; select their key with `security.metricsScrapeTokenSecretKey`. Hook Jobs receive the same policy and `extraEnvFrom` as the server.
+
+
+## 릴리스 및 복원 주의사항 (2026-10-27)
+
+릴리스 태그를 덮어쓰지 마세요. 이 차트는 코어 `0.0.7`을 사용하며 검증된
+linux/amd64 manifest `sha256:3612981b1db1fc898311eaeb091c15964737b25ab31504c5ac6086d5d896a2c2`로 고정합니다.
+amd64 노드를 사용하고 `/health`와 `/api/openapi.json`의 버전이 `0.0.7`인지
+확인하세요. 기존 릴리스 업그레이드 시 `image.tag`와 `image.digest`를 함께
+변경해야 합니다. 이전 digest는 새 태그보다 우선합니다.
+
+제공자 연결에는 `DORARION_ALLOWED_PRIVATE_PROVIDER_HOSTS=gitlab.corp.example`,
+웹훅에는 `DORARION_ALLOWED_PRIVATE_WEBHOOK_HOSTS=hooks.corp.example`를 사용하세요.
+쉼표로 구분한 정확한 호스트명, IP 주소 또는 CIDR만 허용합니다. URL 스킴,
+일반 경로, `gitlab.corp.example:8443` 같은 호스트명과 포트 조합은 넣지 마세요.
+제공자 URL 자체에는 포트를 지정할 수 있습니다. 기존 전체 허용 스위치는 폐기 예정입니다.
+
+앱과 receiver의 쓰기를 멈추고 백업은 반드시 **새 빈 데이터베이스**에 복원하세요.
+기존 DB와 암호화 키를 보존하세요. `pg_restore --clean --if-exists`로 이전 백업을
+새 버전 DB에 덮어쓰면 백업에 없는 신규 객체가 남아 다음 마이그레이션이 실패할 수 있습니다.
+복원한 DB로 연결을 변경하고 마이그레이션과 readiness 확인 후 트래픽을 재개하세요.
+
+Helm에서는 `security.privateProviderHosts: [gitlab.corp.example]`와
+`security.privateWebhookHosts: [hooks.corp.example]`를 지정하세요. 성공한 훅 Job은
+삭제되며 실패한 훅은 진단용으로 남고 다음 훅 생성 전에 정리됩니다. uninstall 후
+실패한 Job이 남을 수 있습니다. 코어 `0.0.7`은 Secret에서 제공한 비밀번호를
+포함하여 첫 로그인 시 bootstrap 비밀번호 변경을 강제합니다. 변경 후에는
+bootstrap Secret 키만 삭제하고 DB, JWT, 암호화 키는 보존하세요.

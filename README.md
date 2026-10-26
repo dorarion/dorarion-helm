@@ -7,12 +7,14 @@ migration fails.
 
 ## Images selected for testing
 
-Chart `0.1.2` defaults to Docker Hub core `kimc1992/dorarion-core:0.0.6`.
-The core tag must be published before installation or upgrade. `image.digest` is
-empty; set it to the verified registry digest to pin an exact core artifact.
+Chart `0.1.4` defaults to Docker Hub core `kimc1992/dorarion-core:0.0.7`,
+pinned to the verified linux/amd64 manifest
+`sha256:3612981b1db1fc898311eaeb091c15964737b25ab31504c5ac6086d5d896a2c2`.
 The optional listener remains `kimc1992/dorarion-listener:0.0.1`, pinned to its
-existing linux/amd64 manifest digest. Use an amd64 node when enabling that image.
-Previously packaged `.tgz` archives are unchanged.
+existing linux/amd64 manifest digest. Use amd64 nodes for these images.
+Release tags must remain immutable. Publish fixes under a new tag and update the
+verified digest together with that tag; do not overwrite published release tags.
+The application version and workload version labels are `0.0.7`.
 
 Render the release images, including receiver and watcher, before installing:
 
@@ -54,7 +56,7 @@ in Markdown and PDF:
 
 ## Install
 
-The defaults select the core `0.0.6` tag. To use another release,
+The defaults select the digest-pinned core `0.0.7` image. To use another release,
 override `image.repository` and `image.digest` with that release's coordinates.
 
 Create credentials before installation because the migration hook runs before
@@ -164,9 +166,13 @@ test restoration into an isolated database. A complete Dorarion backup contains:
 3. the Helm values and immutable application image tag;
 4. externally referenced SMTP and notification credentials.
 
-Scale Dorarion to zero before an in-place restore, restore PostgreSQL using the
-database operator, run the migration hook through `helm upgrade`, and wait for
-readiness before restoring traffic.
+Stop all core replicas and receivers before restoring. Restore into a **new,
+empty database**, preserve the original database for rollback, and switch the
+Secret's `DATABASE_URL` to the restored database. Run migrations through
+`helm upgrade` and wait for readiness before restoring traffic. Do not overlay
+an older dump onto a newer database with `pg_restore --clean --if-exists`:
+objects absent from the backup can survive while the migration ledger moves
+backward, causing the next upgrade to fail.
 
 ## Validate changes
 
@@ -186,7 +192,7 @@ helm template test . \
 
 Use a dedicated HTTPS hostname; mounting Dorarion under `/dorarion` is unsupported.
 `allowInsecurePublicUrl=true` is an explicit local-development exception.
-Set `image.digest=sha256:…` from the verified organization GHCR release; a digest
+Set `image.digest=sha256:…` from the verified Docker Hub release; a digest
 wins over `image.tag`. No release image is published by this chart change.
 
 The pre-install/pre-upgrade Job alone runs migrations; application startup
@@ -214,9 +220,9 @@ installations. Create the namespace and existing Secret before Helm installation
 
 ## Reviewed core configuration
 
-The default pins target the Docker Hub test images listed above. For another
-release, select its reviewed repository and SHA-256 digest. Previously packaged
-`.tgz` archives are unchanged; install the checked-out chart.
+The default pins select the Docker Hub images listed above. For another
+release, select its reviewed repository and SHA-256 digest. Package this checkout
+with `helm package .`; local archives are ignored by Git.
 
 The API pool defaults to 15, with a separate six-connection worker pool per
 replica. Budget database connections for replicas and hook Jobs. Set
@@ -247,3 +253,42 @@ the SQLx ledger or reuse an earlier image after initializing the new schema.
 See the core migrations/README.md for the reinstall procedure. Existing data is
 not automatically deleted by Compose scripts or Helm hooks. Build a fresh image
 from the reviewed source and use a new immutable tag/digest. Listener is optional.
+
+
+## Private network access
+
+Use separate allowlists instead of the deprecated broad
+`security.allowPrivateWebhookDestinations` switch:
+
+```yaml
+security:
+  privateProviderHosts: [gitlab.corp.example]
+  privateWebhookHosts: [hooks.corp.example]
+```
+
+These become `DORARION_ALLOWED_PRIVATE_PROVIDER_HOSTS` and
+`DORARION_ALLOWED_PRIVATE_WEBHOOK_HOSTS` for core and both CLI Jobs. Entries are
+exact DNS names, IP addresses, or CIDRs. Use `gitlab.corp.example`, never
+`https://gitlab.corp.example`, `gitlab.corp.example:8443`, or a path. The provider
+URL may still specify its HTTPS port. These settings do not change DNS, TLS trust,
+NetworkPolicy egress, or the standalone listener's policy.
+
+## Hook Jobs and initial passwords
+
+Successful migration and bootstrap hooks are deleted with `hook-succeeded`.
+Failed migration Jobs remain for diagnosis until their 600-second default
+active deadline; the next upgrade removes the old Job with
+`before-hook-creation`. Helm uninstall does not guarantee deletion of failed
+hook Jobs. Inspect their logs, then remove the Jobs explicitly if no longer needed:
+
+```bash
+kubectl -n dorarion delete job <release-fullname>-migrate <release-fullname>-bootstrap-admin --ignore-not-found
+```
+
+Core `0.0.7` requires changing all bootstrap passwords on first login, including
+Secret-provided passwords. After changing the password, remove only the bootstrap
+password key from the Secret (keep the database, JWT, and encryption keys) and disable
+`bootstrapAdmin.enabled` for subsequent upgrades.
+
+This checkout packages chart `0.1.4`. It does not publish to the OCI registry;
+verify the registry chart version before using an OCI install command.

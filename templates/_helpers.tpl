@@ -75,6 +75,14 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 
 {{/* Startup-validated policy used identically by server and CLI Jobs. */}}
 {{- define "dorarion.installationPolicyEnv" -}}
+{{- with .Values.security.privateProviderHosts }}
+- name: DORARION_ALLOWED_PRIVATE_PROVIDER_HOSTS
+  value: {{ join "," . | quote }}
+{{- end }}
+{{- with .Values.security.privateWebhookHosts }}
+- name: DORARION_ALLOWED_PRIVATE_WEBHOOK_HOSTS
+  value: {{ join "," . | quote }}
+{{- end }}
 {{- if .Values.security.metricsScrapeTokenSecretKey }}
 - name: DORARION_METRICS_SCRAPE_TOKEN
   valueFrom:

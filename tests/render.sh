@@ -55,6 +55,15 @@ fi
 if helm template test "$CHART_DIR" --set image.digest= --set image.tag=reviewed-test-build --set publicUrl=https://example.com --set unknownTypo=true >/dev/null 2>&1; then
   echo 'expected unknown values to fail validation' >&2; exit 1
 fi
+# Allowlist entries accept hostnames/IPs/CIDRs, not URLs or hostname ports.
+for setting in privateProviderHosts privateWebhookHosts; do
+  for invalid in gitlab.corp.example:8443 https://gitlab.corp.example; do
+    if helm template test "$CHART_DIR" --set publicUrl=https://example.com \
+      --set-string "security.$setting[0]=$invalid" >/dev/null 2>&1; then
+      echo "expected security.$setting to reject $invalid" >&2; exit 1
+    fi
+  done
+done
 policies="$(helm template test "$CHART_DIR" --set image.digest= --set image.tag=reviewed-test-build --set publicUrl=https://example.com --set replicaCount=2 --set networkPolicy.enabled=true --set podDisruptionBudget.enabled=true --set image.digest=sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa)"
 grep -Fq 'kind: NetworkPolicy' <<<"$policies"
 grep -Fq 'kind: PodDisruptionBudget' <<<"$policies"
@@ -73,7 +82,9 @@ assert len(workloads)==5, len(workloads)
 for d in workloads:
     for c in d["spec"]["template"]["spec"]["containers"]:
         listener="listener" in d["metadata"]["name"]
-        expected=("docker.io/kimc1992/dorarion-listener@sha256:7427a98bce965ca4ebfa9a95c4f7bc99bbcdbadf88484a1b027378c497deeaf6" if listener else "docker.io/kimc1992/dorarion-core:0.0.6")
+        if not listener:
+            assert d["metadata"]["labels"]["app.kubernetes.io/version"]=="0.0.7"
+        expected=("docker.io/kimc1992/dorarion-listener@sha256:7427a98bce965ca4ebfa9a95c4f7bc99bbcdbadf88484a1b027378c497deeaf6" if listener else "docker.io/kimc1992/dorarion-core@sha256:3612981b1db1fc898311eaeb091c15964737b25ab31504c5ac6086d5d896a2c2")
         assert c["image"]==expected, c["image"]
 '
 if ! command -v kubeconform >/dev/null; then echo 'kubeconform is required' >&2; exit 1; fi
@@ -91,6 +102,8 @@ helm template test "$CHART_DIR" --set image.digest= --set image.tag=reviewed-tes
   --set publicUrl=https://example.com --set bootstrapAdmin.enabled=true \
   --set bootstrapAdmin.email=admin@example.com \
   --set database.trustedHosts[0]=db.internal --set database.statementTimeoutMs=45000 \
+  --set security.privateProviderHosts[0]=gitlab.internal \
+  --set security.privateWebhookHosts[0]=hooks.internal \
   --set security.secretEnvAllowlist[0]=LEGACY_EXTERNAL \
   --set security.trustedProxies[0]=10.0.0.0/24 \
   --set security.reportRecipientDomains[0]=example.com \

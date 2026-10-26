@@ -5,7 +5,7 @@ import yaml
 resources=list(yaml.safe_load_all(sys.stdin))
 workloads=[r for r in resources if r and r['kind'] in ('Deployment','Job')]
 assert len(workloads)==3, 'server, migration and bootstrap workloads are required'
-shared={'DORARION_DATABASE_TRUSTED_HOSTS':'db.internal','DORARION_DB_STATEMENT_TIMEOUT_MS':'45000','DORARION_SECRET_ENV_ALLOWLIST':'LEGACY_EXTERNAL','DORARION_TRUSTED_PROXIES':'10.0.0.0/24','DORARION_REPORT_RECIPIENT_DOMAINS':'example.com','DORARION_README_IMAGE_ORIGINS':'https://gitlab.example.com'}
+shared={'DORARION_ALLOWED_PRIVATE_PROVIDER_HOSTS':'gitlab.internal','DORARION_ALLOWED_PRIVATE_WEBHOOK_HOSTS':'hooks.internal','DORARION_DATABASE_TRUSTED_HOSTS':'db.internal','DORARION_DB_STATEMENT_TIMEOUT_MS':'45000','DORARION_SECRET_ENV_ALLOWLIST':'LEGACY_EXTERNAL','DORARION_TRUSTED_PROXIES':'10.0.0.0/24','DORARION_REPORT_RECIPIENT_DOMAINS':'example.com','DORARION_README_IMAGE_ORIGINS':'https://gitlab.example.com'}
 for r in workloads:
     spec=r['spec']['template']['spec'];container=spec['containers'][0];env={v['name']:v for v in container['env']}
     assert all(env[k]['value']==v for k,v in shared.items()),r['metadata']['name']
@@ -24,4 +24,6 @@ for r in workloads:
         assert spec['terminationGracePeriodSeconds']>=60
     else:
         assert env['DB_CONNECTION_POOL_SIZE']['value']=='1'
+        assert 'before-hook-creation' in r['metadata']['annotations']['helm.sh/hook-delete-policy']
+        assert 'hook-succeeded' in r['metadata']['annotations']['helm.sh/hook-delete-policy']
 print('Shared startup policy and required credentials verified across all workloads.')

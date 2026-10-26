@@ -47,8 +47,8 @@ read -r -p "Verified image digest (sha256:...): " DORARION_IMAGE_DIGEST
 The chart metadata is:
 
 - Chart: `dorarion`
-- Chart version: `0.1.2`
-- Application version: `0.0.6`
+- Chart version: `0.1.4`
+- Application version: `0.0.7`
 - Application image: your verified repository and immutable digest.
 
 ## 3. Prepare PostgreSQL
@@ -355,7 +355,7 @@ to destroy the sample database and have any required backup.
 
 ## Installation and upgrades — reviewed core
 
-These settings describe the reviewed pre-1.0 core source. Select an image built from that source; an existing v0.0.3 registry tag does not prove it contains the remediation changes.
+These settings describe the reviewed pre-1.0 core source. Select an image built from that source; an existing older registry tag does not prove it contains the remediation changes.
 
 Pre-1.0: use the API contract shipped with the selected image. The reviewed source implements CI/CD, jobs, incidents and daily/weekly activity reporting.
 
@@ -370,3 +370,30 @@ Pre-1.0: use the API contract shipped with the selected image. The reviewed sour
 Back up PostgreSQL and the exact encryption key before forward migrations. Run the migration Job/service once and disable server startup migrations. Change the generated bootstrap password on first login. Rotate Argo application tokens after upgrading. Audit retention cannot be shorter than 365 days. Weekly reports cover the seven complete local days before sending; reuse the same Idempotency-Key when retrying one manual send. Incident reopening must be explicit. Read the bundled API contract: demo routes were removed and unknown request fields are rejected. Validate backups, provider delivery and readiness in your environment before production rollout.
 
 Helm: `database.connectionPoolSize=15`, `database.statementTimeoutMs=30000`, `database.trustedHosts=[]`, `security.secretEnvAllowlist=[]`, `security.trustedProxies=[]`, `security.reportRecipientDomains=[]`, `security.readmeImageOrigins=[]`. Optional monitoring credentials belong in the existing Secret; select their key with `security.metricsScrapeTokenSecretKey`. Hook Jobs receive the same policy and `extraEnvFrom` as the server.
+
+
+## Release and recovery notes (2026-10-27)
+
+Release tags must be immutable. This chart selects core `0.0.7`, pinned to the
+verified linux/amd64 manifest `sha256:3612981b1db1fc898311eaeb091c15964737b25ab31504c5ac6086d5d896a2c2`.
+Use amd64 nodes. Both `/health` and `/api/openapi.json` should report `0.0.7`.
+When upgrading an existing release, update both `image.tag` and `image.digest`;
+an older digest takes precedence over a new tag.
+
+Use `DORARION_ALLOWED_PRIVATE_PROVIDER_HOSTS=gitlab.corp.example` for provider
+access and `DORARION_ALLOWED_PRIVATE_WEBHOOK_HOSTS=hooks.corp.example` for
+webhooks. Entries are exact hostnames, IP addresses, or CIDRs, comma-separated:
+no URL schemes, paths (except CIDR), or hostname ports. The provider URL itself
+may include a port. The legacy broad switch is deprecated.
+
+Stop writers and receivers and restore backups into a **new, empty database**.
+Preserve the old database and encryption key. Never overlay an older dump with
+`pg_restore --clean --if-exists`; leftover newer objects can break migration
+replay. Switch the database connection, run migrations, then verify readiness.
+
+Helm values: `security.privateProviderHosts: [gitlab.corp.example]` and
+`security.privateWebhookHosts: [hooks.corp.example]`. Successful hook Jobs are
+deleted; failed hooks remain for diagnosis and are removed before the next hook
+creation. Uninstall may leave failed Jobs. Core `0.0.7` requires changing the
+bootstrap password on first login, including Secret-provided passwords. Then
+remove its bootstrap Secret key, preserving the database, JWT, and encryption keys.

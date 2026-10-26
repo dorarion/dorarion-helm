@@ -45,8 +45,8 @@ read -r -p "Verified image digest (sha256:...): " DORARION_IMAGE_DIGEST
 Chart 元数据如下：
 
 - Chart：`dorarion`
-- Chart 版本：`0.1.2`
-- 应用版本：`0.0.6`
+- Chart 版本：`0.1.4`
+- 应用版本：`0.0.7`
 - 应用镜像：已验证的仓库和不可变 digest。
 
 ## 3. 准备 PostgreSQL
@@ -342,7 +342,7 @@ kubectl -n dorarion delete secret dorarion-postgresql
 
 ## 安装与升级 — reviewed core
 
-这些设置针对已审查的 1.0 之前 core 源码。请选择由该源码构建的镜像；现有 v0.0.3 标签不能证明包含本次修复。
+这些设置针对已审查的 1.0 之前 core 源码。请选择由该源码构建的镜像；现有 旧版本 标签不能证明包含本次修复。
 
 1.0 之前版本：请使用所选镜像附带的 API 契约。已审查源码支持 CI/CD、运维任务、事故及每日/每周活动报告。
 
@@ -357,3 +357,28 @@ kubectl -n dorarion delete secret dorarion-postgresql
 前向迁移前备份 PostgreSQL 和原始加密密钥。单独运行迁移 Job/服务，关闭服务器启动迁移。首次登录修改生成的管理员密码，升级后轮换 Argo 应用令牌。审计保留不能短于 365 天。每周报告覆盖发送前完整的本地 7 天；重试同一次手动发送应复用 Idempotency-Key。重新打开事故必须显式请求。演示端点已删除，未知请求字段被拒绝，请检查镜像内的 API 契约。上线前在自己的环境验证恢复、供应商消息和 readiness。
 
 Helm: `database.connectionPoolSize=15`, `database.statementTimeoutMs=30000`, `database.trustedHosts=[]`, `security.secretEnvAllowlist=[]`, `security.trustedProxies=[]`, `security.reportRecipientDomains=[]`, `security.readmeImageOrigins=[]`. Optional monitoring credentials belong in the existing Secret; select their key with `security.metricsScrapeTokenSecretKey`. Hook Jobs receive the same policy and `extraEnvFrom` as the server.
+
+
+## 发布与恢复注意事项（2026-10-27）
+
+不要覆盖发布标签。此 Chart 使用核心 `0.0.7`，固定到已验证的 linux/amd64
+manifest `sha256:3612981b1db1fc898311eaeb091c15964737b25ab31504c5ac6086d5d896a2c2`。
+请使用 amd64 节点，确认 `/health` 和 `/api/openapi.json` 的版本为 `0.0.7`。
+升级现有 release 时同时更新 `image.tag` 和 `image.digest`；旧摘要优先于新标签。
+
+提供者连接使用 `DORARION_ALLOWED_PRIVATE_PROVIDER_HOSTS=gitlab.corp.example`，
+Webhook 使用 `DORARION_ALLOWED_PRIVATE_WEBHOOK_HOSTS=hooks.corp.example`。
+值为逗号分隔的精确主机名、IP 地址或 CIDR；不要包含 URL 协议、普通路径
+或 `gitlab.corp.example:8443` 形式的主机名端口。提供者 URL 本身可以指定端口。
+旧的全局允许开关已弃用。
+
+停止应用与 receiver 写入，备份必须恢复到**新的空数据库**。保留原数据库
+和加密密钥。不要使用 `pg_restore --clean --if-exists` 将旧备份覆盖到新版本
+数据库；备份中没有的新对象可能残留，导致后续迁移失败。更改数据库连接，
+执行迁移并确认 readiness 后再恢复流量。
+
+Helm 使用 `security.privateProviderHosts: [gitlab.corp.example]` 和
+`security.privateWebhookHosts: [hooks.corp.example]`。成功的 hook Job 会删除；
+失败的 Job 保留用于诊断，下次创建 hook 前会清理。卸载后可能残留失败的 Job。
+核心 `0.0.7` 强制首次登录修改 bootstrap 密码，包括通过 Secret 提供的密码。
+修改后仅删除 bootstrap Secret 密钥，保留数据库、JWT 和加密密钥。
