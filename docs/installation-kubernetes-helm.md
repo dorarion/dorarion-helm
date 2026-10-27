@@ -47,8 +47,8 @@ read -r -p "Verified image digest (sha256:...): " DORARION_IMAGE_DIGEST
 The chart metadata is:
 
 - Chart: `dorarion`
-- Chart version: `0.1.4`
-- Application version: `0.0.7`
+- Chart version: `0.1.6`
+- Application version: `0.0.8`
 - Application image: your verified repository and immutable digest.
 
 ## 3. Prepare PostgreSQL
@@ -374,9 +374,9 @@ Helm: `database.connectionPoolSize=15`, `database.statementTimeoutMs=30000`, `da
 
 ## Release and recovery notes (2026-10-27)
 
-Release tags must be immutable. This chart selects core `0.0.7`, pinned to the
-verified linux/amd64 manifest `sha256:3612981b1db1fc898311eaeb091c15964737b25ab31504c5ac6086d5d896a2c2`.
-Use amd64 nodes. Both `/health` and `/api/openapi.json` should report `0.0.7`.
+Release tags must be immutable. This chart selects core `0.0.8`, pinned to the
+verified shared image index `sha256:156e422514c7974010483a8938c579453d02f884353b9b4b9b9919537fed9f97`.
+Check the README for the platforms supported by the selected release. Both `/health` and `/api/openapi.json` should report `0.0.8`.
 When upgrading an existing release, update both `image.tag` and `image.digest`;
 an older digest takes precedence over a new tag.
 
@@ -394,6 +394,6 @@ replay. Switch the database connection, run migrations, then verify readiness.
 Helm values: `security.privateProviderHosts: [gitlab.corp.example]` and
 `security.privateWebhookHosts: [hooks.corp.example]`. Successful hook Jobs are
 deleted; failed hooks remain for diagnosis and are removed before the next hook
-creation. Uninstall may leave failed Jobs. Core `0.0.7` requires changing the
+creation. Uninstall may leave failed Jobs. Core `0.0.8` requires changing the
 bootstrap password on first login, including Secret-provided passwords. Then
 remove its bootstrap Secret key, preserving the database, JWT, and encryption keys.

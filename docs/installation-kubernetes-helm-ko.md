@@ -47,8 +47,8 @@ read -r -p "Verified image digest (sha256:...): " DORARION_IMAGE_DIGEST
 차트 메타데이터는 다음과 같습니다.
 
 - 차트: `dorarion`
-- 차트 버전: `0.1.4`
-- 애플리케이션 버전: `0.0.7`
+- 차트 버전: `0.1.6`
+- 애플리케이션 버전: `0.0.8`
 - 애플리케이션 이미지: 검증된 저장소와 변경 불가능한 digest.
 
 ## 3. PostgreSQL 준비
@@ -375,9 +375,9 @@ Helm: `database.connectionPoolSize=15`, `database.statementTimeoutMs=30000`, `da
 
 ## 릴리스 및 복원 주의사항 (2026-10-27)
 
-릴리스 태그를 덮어쓰지 마세요. 이 차트는 코어 `0.0.7`을 사용하며 검증된
-linux/amd64 manifest `sha256:3612981b1db1fc898311eaeb091c15964737b25ab31504c5ac6086d5d896a2c2`로 고정합니다.
-amd64 노드를 사용하고 `/health`와 `/api/openapi.json`의 버전이 `0.0.7`인지
+릴리스 태그를 덮어쓰지 마세요. 이 차트는 코어 `0.0.8`을 사용하며 검증된
+공유 이미지 인덱스 `sha256:156e422514c7974010483a8938c579453d02f884353b9b4b9b9919537fed9f97`로 고정합니다.
+지원 플랫폼은 README에서 확인하고 `/health`와 `/api/openapi.json`의 버전이 `0.0.8`인지
 확인하세요. 기존 릴리스 업그레이드 시 `image.tag`와 `image.digest`를 함께
 변경해야 합니다. 이전 digest는 새 태그보다 우선합니다.
 
@@ -395,6 +395,6 @@ amd64 노드를 사용하고 `/health`와 `/api/openapi.json`의 버전이 `0.0.
 Helm에서는 `security.privateProviderHosts: [gitlab.corp.example]`와
 `security.privateWebhookHosts: [hooks.corp.example]`를 지정하세요. 성공한 훅 Job은
 삭제되며 실패한 훅은 진단용으로 남고 다음 훅 생성 전에 정리됩니다. uninstall 후
-실패한 Job이 남을 수 있습니다. 코어 `0.0.7`은 Secret에서 제공한 비밀번호를
+실패한 Job이 남을 수 있습니다. 코어 `0.0.8`은 Secret에서 제공한 비밀번호를
 포함하여 첫 로그인 시 bootstrap 비밀번호 변경을 강제합니다. 변경 후에는
 bootstrap Secret 키만 삭제하고 DB, JWT, 암호화 키는 보존하세요.

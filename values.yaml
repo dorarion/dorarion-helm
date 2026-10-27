@@ -9,9 +9,9 @@ image:
   registry: ""
   repository: docker.io/kimc1992/dorarion-core
   pullPolicy: IfNotPresent
-  # Docker Hub core 0.0.7, pinned to the verified linux/amd64 manifest.
-  tag: "0.0.7"
-  digest: "sha256:3612981b1db1fc898311eaeb091c15964737b25ab31504c5ac6086d5d896a2c2"
+  # Core release pinned to its shared image index; Docker selects the platform.
+  tag: "0.0.8"
+  digest: "sha256:156e422514c7974010483a8938c579453d02f884353b9b4b9b9919537fed9f97"
 
 imagePullSecrets: []
 nameOverride: ""

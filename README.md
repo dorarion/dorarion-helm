@@ -7,14 +7,14 @@ migration fails.
 
 ## Images selected for testing
 
-Chart `0.1.4` defaults to Docker Hub core `kimc1992/dorarion-core:0.0.7`,
-pinned to the verified linux/amd64 manifest
-`sha256:3612981b1db1fc898311eaeb091c15964737b25ab31504c5ac6086d5d896a2c2`.
-The optional listener remains `kimc1992/dorarion-listener:0.0.1`, pinned to its
-existing linux/amd64 manifest digest. Use amd64 nodes for these images.
-Release tags must remain immutable. Publish fixes under a new tag and update the
-verified digest together with that tag; do not overwrite published release tags.
-The application version and workload version labels are `0.0.7`.
+Core `0.0.8` uses the shared image-index digest `sha256:156e422514c7974010483a8938c579453d02f884353b9b4b9b9919537fed9f97`.
+The published `0.0.8` index contains **linux/amd64 and linux/arm64**. Docker
+selects the matching platform automatically from this shared index.
+Chart version: **0.1.6**. The optional listener remains independently pinned
+to its amd64 image; ARM64 core support does not imply ARM64 listener support.
+
+The optional listener `0.0.1` remains amd64-only. Leave it disabled on ARM64
+until a separately verified ARM64 listener image is published.
 
 Render the release images, including receiver and watcher, before installing:
 
@@ -56,7 +56,7 @@ in Markdown and PDF:
 
 ## Install
 
-The defaults select the digest-pinned core `0.0.7` image. To use another release,
+The defaults select the digest-pinned core `0.0.8` image. To use another release,
 override `image.repository` and `image.digest` with that release's coordinates.
 
 Create credentials before installation because the migration hook runs before
@@ -285,10 +285,19 @@ hook Jobs. Inspect their logs, then remove the Jobs explicitly if no longer need
 kubectl -n dorarion delete job <release-fullname>-migrate <release-fullname>-bootstrap-admin --ignore-not-found
 ```
 
-Core `0.0.7` requires changing all bootstrap passwords on first login, including
+Core `0.0.8` requires changing all bootstrap passwords on first login, including
 Secret-provided passwords. After changing the password, remove only the bootstrap
 password key from the Secret (keep the database, JWT, and encryption keys) and disable
 `bootstrapAdmin.enabled` for subsequent upgrades.
 
-This checkout packages chart `0.1.4`. It does not publish to the OCI registry;
+This checkout packages chart `0.1.6`. It does not publish to the OCI registry;
 verify the registry chart version before using an OCI install command.
+
+
+## Multi-platform release promotion
+
+For a new core release, pin the **shared image-index digest**, never a platform's
+individual manifest. Docker then selects the matching architecture. Publication
+must verify that the index contains both `linux/amd64` and `linux/arm64` and that
+each image passed its platform test. See the core [multi-platform release guide](../dorarion-core/docs/multi-platform-releases.md).
+Keep the current pin until that new release has been published and verified.

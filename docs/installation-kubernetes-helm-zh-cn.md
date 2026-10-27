@@ -45,8 +45,8 @@ read -r -p "Verified image digest (sha256:...): " DORARION_IMAGE_DIGEST
 Chart 元数据如下：
 
 - Chart：`dorarion`
-- Chart 版本：`0.1.4`
-- 应用版本：`0.0.7`
+- Chart 版本：`0.1.6`
+- 应用版本：`0.0.8`
 - 应用镜像：已验证的仓库和不可变 digest。
 
 ## 3. 准备 PostgreSQL
@@ -361,9 +361,8 @@ Helm: `database.connectionPoolSize=15`, `database.statementTimeoutMs=30000`, `da
 
 ## 发布与恢复注意事项（2026-10-27）
 
-不要覆盖发布标签。此 Chart 使用核心 `0.0.7`，固定到已验证的 linux/amd64
-manifest `sha256:3612981b1db1fc898311eaeb091c15964737b25ab31504c5ac6086d5d896a2c2`。
-请使用 amd64 节点，确认 `/health` 和 `/api/openapi.json` 的版本为 `0.0.7`。
+不要覆盖发布标签。此 Chart 使用核心 `0.0.8`，固定到已验证的 共享镜像索引 `sha256:156e422514c7974010483a8938c579453d02f884353b9b4b9b9919537fed9f97`。
+请查看 README 中支持的平台，确认 `/health` 和 `/api/openapi.json` 的版本为 `0.0.8`。
 升级现有 release 时同时更新 `image.tag` 和 `image.digest`；旧摘要优先于新标签。
 
 提供者连接使用 `DORARION_ALLOWED_PRIVATE_PROVIDER_HOSTS=gitlab.corp.example`，
@@ -380,5 +379,5 @@ Webhook 使用 `DORARION_ALLOWED_PRIVATE_WEBHOOK_HOSTS=hooks.corp.example`。
 Helm 使用 `security.privateProviderHosts: [gitlab.corp.example]` 和
 `security.privateWebhookHosts: [hooks.corp.example]`。成功的 hook Job 会删除；
 失败的 Job 保留用于诊断，下次创建 hook 前会清理。卸载后可能残留失败的 Job。
-核心 `0.0.7` 强制首次登录修改 bootstrap 密码，包括通过 Secret 提供的密码。
+核心 `0.0.8` 强制首次登录修改 bootstrap 密码，包括通过 Secret 提供的密码。
 修改后仅删除 bootstrap Secret 密钥，保留数据库、JWT 和加密密钥。

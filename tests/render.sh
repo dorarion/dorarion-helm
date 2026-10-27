@@ -83,8 +83,8 @@ for d in workloads:
     for c in d["spec"]["template"]["spec"]["containers"]:
         listener="listener" in d["metadata"]["name"]
         if not listener:
-            assert d["metadata"]["labels"]["app.kubernetes.io/version"]=="0.0.7"
-        expected=("docker.io/kimc1992/dorarion-listener@sha256:7427a98bce965ca4ebfa9a95c4f7bc99bbcdbadf88484a1b027378c497deeaf6" if listener else "docker.io/kimc1992/dorarion-core@sha256:3612981b1db1fc898311eaeb091c15964737b25ab31504c5ac6086d5d896a2c2")
+            assert d["metadata"]["labels"]["app.kubernetes.io/version"]=="0.0.8"
+        expected=("docker.io/kimc1992/dorarion-listener@sha256:7427a98bce965ca4ebfa9a95c4f7bc99bbcdbadf88484a1b027378c497deeaf6" if listener else "docker.io/kimc1992/dorarion-core@sha256:156e422514c7974010483a8938c579453d02f884353b9b4b9b9919537fed9f97")
         assert c["image"]==expected, c["image"]
 '
 if ! command -v kubeconform >/dev/null; then echo 'kubeconform is required' >&2; exit 1; fi
@@ -110,4 +110,5 @@ helm template test "$CHART_DIR" --set image.digest= --set image.tag=reviewed-tes
   --set security.readmeImageOrigins[0]=https://gitlab.example.com \
   --set security.metricsScrapeTokenSecretKey=METRICS_TOKEN \
   --set extraEnvFrom[0].secretRef.name=external-credentials | python3 "$CHART_DIR/tests/verify-render.py"
+python3 "$CHART_DIR/tests/registry.py"
 echo 'Dorarion Helm render and shared-policy tests passed.'
